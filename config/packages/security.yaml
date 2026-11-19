@@ -12,7 +12,15 @@ security:
         dev:
             pattern: ^/(_profiler|_wdt|assets)/
             security: false
-        # Firewall API (etap 2): bezstanowy, token urządzenia w nagłówku Authorization.
+        # API agentów: bezstanowe, bez sesji/ciasteczek/CSRF, token w "Authorization: Bearer".
+        api:
+            pattern: ^/api/
+            stateless: true
+            provider: admin_users # nieużywany: DeviceTokenHandler sam dostarcza użytkownika
+            entry_point: App\Security\ApiAuthenticationHandler
+            access_token:
+                token_handler: App\Security\DeviceTokenHandler
+                failure_handler: App\Security\ApiAuthenticationHandler
         main:
             lazy: true
             provider: admin_users
@@ -31,6 +39,7 @@ security:
                 interval: '15 minutes'
 
     access_control:
+        - { path: ^/api/, roles: ROLE_DEVICE }
         - { path: ^/login$, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_ADMIN }
 

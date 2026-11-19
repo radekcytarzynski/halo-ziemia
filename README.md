@@ -46,6 +46,47 @@ Wartości domyślne są w `.env`. Lokalne i produkcyjne nadpisania umieszczaj w 
 | `WATCHDOG_URL`         | Opcjonalny URL pingowany po każdym udanym `app:tick` |
 | `LOCK_DSN`             | Domyślnie `flock` (pliki w `var/`) |
 
+## API agentów
+
+Uwierzytelnianie: nagłówek `Authorization: Bearer hz_…` (token per urządzenie). API jest bezstanowe, bez sesji i ciasteczek.
+W produkcji przyjmuje wyłącznie HTTPS (`API_REQUIRE_HTTPS=1`); żądanie po HTTP dostaje `403 https_required`.
+
+| Endpoint | Opis |
+|----------|------|
+| `POST /api/v1/heartbeat` | Heartbeat z metrykami (JSON, max 64 KB) |
+| `GET /api/v1/ping` | Minimalny heartbeat bez metryk |
+
+Odpowiedź `200`: `{"ok":true,"server_time":"2026-11-19T12:00:00Z","interval":60}`.
+Błędy (`{"ok":false,"error":"…","message":"…","details":[…]}`):
+`401 unauthorized`, `413 payload_too_large`, `422 invalid_json` / `validation_failed`, `429 rate_limited` (12/min na token, nagłówek `Retry-After`).
+
+Czas kontaktu to zawsze czas odbioru po stronie serwera, a zegar agenta jest ignorowany.
+
+### Payload (schema 1)
+
+Wymagane jest tylko `"schema": 1`. Pozostałe sekcje są opcjonalne, a nieznane pola są ignorowane.
+Przykład: `tests/Unit/Ingest/HeartbeatParserTest.php::examplePayload()`.
+
+Spłaszczanie do kluczy metryk:
+
+| Sekcja payloadu | Klucze metryk |
+|-----------------|---------------|
+| `uptime_s`, `cpu_temp_c` | `uptime_s`, `cpu.temp_c` |
+| `load: [1, 5, 15]` | `load.1`, `load.5`, `load.15` |
+| `mem` | `mem.available_pct`, `mem.available_kb`, `mem.swap_used_kb`, `mem.swap_used_pct` (gdy jest `swap_total_kb`) |
+| `disks[]` | `disk.<mount>.used_pct`, `disk.<mount>.free_b`, `disk.<mount>.inodes_used_pct` |
+| `smart[]` | `smart.<dev>.passed` (1/0), `.temp_c`, `.power_on_hours`, `.reallocated`, `.pending`, `.percentage_used` |
+| `raid[]` | `raid.<name>.degraded` (1/0) |
+| `rpi.throttled` (`"0x50005"`) | `rpi.throttled` (liczba; flagi opisowo w snapshotcie) |
+| `checks[]` | wynik checka + `check.<name>.age_s` (z `last_success_age_s`) |
+| `metrics: {"klucz": liczba}` | własne metryki pluginów (nie nadpisują wbudowanych) |
+
+### Tokeny
+
+- Format: `hz_` + 48 znaków base62 z CSPRNG. W bazie trzymany jest tylko SHA-256 i 10-znakowy prefiks do identyfikacji.
+- Rotacja wydaje nowy token, a dotychczasowe działają jeszcze przez okno przejściowe (domyślnie 24 h).
+- Pomocniczo w dev: `bin/console app:device:create "NAS Debian"` wypisuje token jeden raz.
+
 ## Struktura
 
 - `src/Entity`, `src/Enum`, `src/Repository`: model danych

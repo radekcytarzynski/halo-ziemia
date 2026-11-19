@@ -1,0 +1,13 @@
+framework:
+    rate_limiter:
+        # Per token: normalnie 1 żądanie/min (+2 retry agenta); zapas na ręczne testy.
+        api_device:
+            policy: sliding_window
+            limit: 12
+            interval: '1 minute'
+            cache_pool: app.rate_limiter.cache
+
+    cache:
+        pools:
+            app.rate_limiter.cache:
+                adapter: cache.adapter.filesystem
