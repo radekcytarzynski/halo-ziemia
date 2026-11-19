@@ -1,0 +1,7 @@
+# Klasyczne (sesyjne) tokeny CSRF: panel i tak korzysta z sesji, a nie używamy JS do double-submit.
+framework:
+    form:
+        csrf_protection:
+            enabled: true
+    csrf_protection:
+        enabled: true

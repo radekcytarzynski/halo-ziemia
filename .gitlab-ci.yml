@@ -1,0 +1,27 @@
+# Pipeline v1: jedna faza QA (cs-fixer dry-run + phpstan + phpunit).
+stages:
+  - qa
+
+variables:
+  COMPOSER_CACHE_DIR: "$CI_PROJECT_DIR/.composer-cache"
+  MARIADB_ROOT_PASSWORD: root
+  # Baza testowa: Doctrine doda sufiks "_test" → halo_test (tworzona przez composer test-db).
+  DATABASE_URL: "mysql://root:root@mariadb:3306/halo?serverVersion=11.4.0-MariaDB&charset=utf8mb4"
+
+qa:
+  stage: qa
+  image: php:8.5-cli
+  services:
+    - name: mariadb:11.4
+      alias: mariadb
+  cache:
+    key:
+      files: [composer.lock]
+    paths: [.composer-cache/, vendor/]
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git unzip libicu-dev libzip-dev > /dev/null
+    - docker-php-ext-install -j"$(nproc)" intl pdo_mysql zip > /dev/null
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - composer install --no-interaction --no-progress --prefer-dist
+  script:
+    - composer qa

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{% block title %}Panel{% endblock %} · halo-ziemia</title>
+    <link rel="icon" href="{{ asset('images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+    {% block stylesheets %}{% endblock %}
+    <script type="module" src="{{ asset('app.js') }}"></script>
+    {% block javascripts %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+{% block body %}
+    <header class="topbar">
+        <a class="brand" href="{{ path('app_dashboard') }}">
+            {{ include('_logo.svg.twig') }}
+            <span>halo-ziemia</span>
+        </a>
+        <button class="nav-toggle" type="button" aria-controls="main-nav" aria-expanded="false">
+            <span class="visually-hidden">Menu</span>
+            <span class="nav-toggle-bar" aria-hidden="true"></span>
+        </button>
+        <nav id="main-nav" class="main-nav" aria-label="Główna nawigacja">
+            {% set route = app.request.attributes.get('_route') %}
+            <a href="{{ path('app_dashboard') }}" {% if route == 'app_dashboard' %}aria-current="page"{% endif %}>Pulpit</a>
+            <a href="{{ path('app_logout') }}" class="nav-logout">Wyloguj</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% for type, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="flash flash-{{ type }}" role="status">{{ message }}</div>
+            {% endfor %}
+        {% endfor %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <span>Czas: {{ app_timezone }}</span>
+    </footer>
+{% endblock %}
+</body>
+</html>

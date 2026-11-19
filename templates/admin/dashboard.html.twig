@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Pulpit{% endblock %}
+
+{% block content %}
+    <div class="page-head">
+        <h1>Pulpit</h1>
+    </div>
+
+    <section class="empty-state">
+        {{ include('_logo.svg.twig') }}
+        <h2>Brak urządzeń</h2>
+        <p class="muted">Gdy dodasz urządzenie i uruchomisz na nim agenta, pojawi się tutaj jego karta ze statusem.</p>
+    </section>
+{% endblock %}

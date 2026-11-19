@@ -1,0 +1,18 @@
+parameters:
+    level: max
+    paths:
+        - src/
+        - tests/
+        - migrations/
+    tmpDir: var/phpstan
+    symfony:
+        containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
+        consoleApplicationLoader: tests/console-application.php
+    doctrine:
+        objectManagerLoader: tests/object-manager.php
+    checkUninitializedProperties: true
+    reportUnmatchedIgnoredErrors: true
+    excludePaths:
+        - tests/bootstrap.php
+        - tests/object-manager.php
+        - tests/console-application.php

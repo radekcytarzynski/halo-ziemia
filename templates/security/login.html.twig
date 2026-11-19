@@ -1,0 +1,33 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Logowanie{% endblock %}
+{% block body_class %}page-login{% endblock %}
+
+{% block body %}
+    <main class="login">
+        <div class="login-card">
+            <div class="brand brand-lg">
+                {{ include('_logo.svg.twig') }}
+                <span>halo-ziemia</span>
+            </div>
+            <p class="muted">Monitoring urządzeń</p>
+
+            {% if error %}
+                <div class="flash flash-error" role="alert">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+            {% endif %}
+
+            <form method="post" action="{{ path('app_login') }}" class="form">
+                <div class="field">
+                    <label for="email">E-mail</label>
+                    <input type="email" id="email" name="email" value="{{ last_username }}" autocomplete="username" required autofocus>
+                </div>
+                <div class="field">
+                    <label for="password">Hasło</label>
+                    <input type="password" id="password" name="password" autocomplete="current-password" required>
+                </div>
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+                <button type="submit" class="btn btn-primary btn-block">Zaloguj</button>
+            </form>
+        </div>
+    </main>
+{% endblock %}

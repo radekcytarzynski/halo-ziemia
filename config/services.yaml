@@ -1,0 +1,16 @@
+parameters:
+    app.base_url: '%env(APP_BASE_URL)%'
+    app.timezone_display: '%env(APP_TIMEZONE_DISPLAY)%'
+    app.watchdog_url: '%env(default::WATCHDOG_URL)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
