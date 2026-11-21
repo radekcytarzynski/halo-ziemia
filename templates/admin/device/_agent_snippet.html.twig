@@ -1,0 +1,22 @@
+{# Instrukcja podłączenia agenta. token = jawny token (tylko tuż po utworzeniu) albo null. #}
+{% set token_value = token ?? '<TWÓJ_TOKEN>' %}
+<div class="snippet-block">
+    <h3>1. Instalacja agenta (Debian / Raspberry Pi OS)</h3>
+    <p class="muted small">Instalator zapyta o token (wklej go z pola powyżej) – dzięki temu nie trafi on do historii powłoki.</p>
+    <div class="snippet">
+        <pre id="snippet-install"><code>curl -fsSL {{ base_url }}/agent/halo-ziemia-agent.tar.gz | tar xz
+cd halo-ziemia-agent
+sudo ./install.sh --url {{ base_url }}</code></pre>
+        <button type="button" class="btn btn-sm copy-btn" data-copy-target="snippet-install">Kopiuj</button>
+    </div>
+
+    <h3>2. Szybki test połączenia (opcjonalnie)</h3>
+    <p class="muted small">Ręczny heartbeat z dowolnej maszyny. Uwaga: token w linii poleceń trafia do historii powłoki.</p>
+    <div class="snippet">
+        <pre id="snippet-test"><code>curl -sS -H "Authorization: Bearer {{ token_value }}" \
+  -H "Content-Type: application/json" \
+  -d '{"schema":1,"uptime_s":3600,"load":[0.1,0.2,0.3],"cpu_temp_c":45}' \
+  {{ base_url }}/api/v1/heartbeat</code></pre>
+        <button type="button" class="btn btn-sm copy-btn" data-copy-target="snippet-test">Kopiuj</button>
+    </div>
+</div>

@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\OutboxMessage;
 use App\Enum\OutboxStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -36,5 +37,25 @@ class OutboxMessageRepository extends ServiceEntityRepository
             ->getResult();
 
         return $result;
+    }
+
+    /**
+     * @return array{items: list<OutboxMessage>, total: int}
+     */
+    public function search(?OutboxStatus $status, int $page, int $perPage): array
+    {
+        $qb = $this->createQueryBuilder('o')
+            ->orderBy('o.id', 'DESC')
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage);
+
+        if (null !== $status) {
+            $qb->andWhere('o.status = :status')->setParameter('status', $status);
+        }
+
+        /** @var Paginator<OutboxMessage> $paginator */
+        $paginator = new Paginator($qb->getQuery(), fetchJoinCollection: false);
+
+        return ['items' => array_values(iterator_to_array($paginator)), 'total' => \count($paginator)];
     }
 }

@@ -1,0 +1,26 @@
+{% import '_macros.html.twig' as ui %}
+{% if rules is empty %}
+    {% if empty %}<p class="muted">{{ empty }}</p>{% endif %}
+{% else %}
+    <div class="table-wrap card card-flush">
+        <table class="table table-compact">
+            <thead><tr><th>Reguła</th><th>Cel</th><th>WARN</th><th>CRIT</th><th class="hide-sm">Próbki</th><th></th></tr></thead>
+            <tbody>
+            {% for rule in rules %}
+                <tr{% if not rule.enabled %} class="is-disabled"{% endif %}>
+                    <td>{{ rule.displayName }}{% if not rule.enabled %} <span class="tag">wyłączona</span>{% endif %}</td>
+                    <td class="mono small">{{ rule.source.value == 'check' ? 'check: ' : '' }}{{ rule.target }}</td>
+                    {% if rule.source.value == 'metric' %}
+                        <td class="num">{% if rule.warnThreshold is not null %}{{ rule.operator.symbol }} {{ rule.warnThreshold|hz_metric(rule.target) }}{% else %}–{% endif %}</td>
+                        <td class="num">{% if rule.critThreshold is not null %}{{ rule.operator.symbol }} {{ rule.critThreshold|hz_metric(rule.target) }}{% else %}–{% endif %}</td>
+                    {% else %}
+                        <td colspan="2" class="muted small">status checka (warn / fail)</td>
+                    {% endif %}
+                    <td class="hide-sm num">{{ rule.consecutiveSamples }}</td>
+                    <td class="actions"><a class="btn btn-sm" href="{{ path('app_rule_edit', {id: rule.id}) }}">Edytuj</a></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}

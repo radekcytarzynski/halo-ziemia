@@ -1,0 +1,67 @@
+{% import '_macros.html.twig' as ui %}
+
+{% if cron.stale %}
+    <div class="banner banner-crit" role="alert">
+        <strong>Cron nie działa.</strong>
+        {% if cron.last_tick_at %}Ostatni <code>app:tick</code>: {{ cron.last_tick_at|date('Y-m-d H:i') }} ({{ cron.last_tick_at|hz_ago }}).{% else %}<code>app:tick</code> jeszcze nigdy się nie wykonał.{% endif %}
+        Bez niego nie działa wykrywanie braku kontaktu ani wysyłka powiadomień. <a href="{{ path('app_settings') }}">Jak skonfigurować</a>
+    </div>
+{% endif %}
+
+{% if cards is empty %}
+    <section class="empty-state">
+        {{ include('_logo.svg.twig') }}
+        <h2>Brak urządzeń</h2>
+        <p class="muted">Dodaj urządzenie i zainstaluj na nim agenta – pojawi się tutaj jego karta ze statusem.</p>
+        <p><a class="btn btn-primary" href="{{ path('app_device_new') }}">Dodaj urządzenie</a></p>
+    </section>
+{% else %}
+    {% set counts = {} %}
+    {% for card in cards %}{% set counts = counts|merge({(card.device.status.value): (counts[card.device.status.value]|default(0)) + 1}) %}{% endfor %}
+    <div class="summary">
+        {% for value, count in counts %}
+            <span class="status status-{{ value }}">{{ count }} × {{ value|upper }}</span>
+        {% endfor %}
+    </div>
+
+    <div class="cards">
+        {% for card in cards %}
+            {% set d = card.device %}
+            <a class="device-card device-card-{{ d.status.value }}" href="{{ path('app_device_show', {id: d.id}) }}">
+                <div class="device-card-head">
+                    <h2>{{ d.name }}</h2>
+                    {{ ui.status(d.status.value, d.status.label) }}
+                </div>
+                <p class="device-card-seen">
+                    {% if d.lastSeenAt %}Ostatni kontakt: <span title="{{ d.lastSeenAt|date('Y-m-d H:i:s') }}">{{ d.lastSeenAt|hz_ago }}</span>{% else %}Czeka na pierwszy heartbeat{% endif %}
+                    {% if card.muted %}<span class="tag tag-muted" title="do {{ d.mutedUntil|date('Y-m-d H:i') }}">serwis</span>{% endif %}
+                </p>
+
+                {% if card.indicators is not empty %}
+                    <dl class="indicators">
+                        {% for i in card.indicators %}
+                            <div class="indicator{% if i.severity %} indicator-{{ i.severity }}{% endif %}">
+                                <dt>{{ i.label }}</dt>
+                                <dd>{{ i.value|hz_metric(i.unit) }}</dd>
+                            </div>
+                        {% endfor %}
+                    </dl>
+                {% endif %}
+
+                {% if card.problems is not empty %}
+                    <ul class="problems">
+                        {% for p in card.problems|slice(0, 3) %}<li>{{ p }}</li>{% endfor %}
+                        {% if card.problems|length > 3 %}<li class="muted">i {{ card.problems|length - 3 }} więcej…</li>{% endif %}
+                    </ul>
+                {% endif %}
+
+                {% if card.sparklinePath %}
+                    <svg class="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" role="img" aria-label="{{ card.sparklineLabel }}">
+                        <title>{{ card.sparklineLabel }}</title>
+                        <path d="{{ card.sparklinePath }}"/>
+                    </svg>
+                {% endif %}
+            </a>
+        {% endfor %}
+    </div>
+{% endif %}

@@ -172,4 +172,17 @@ class OutboxMessage
         $this->nextAttemptAt = $nextAttemptAt;
         $this->status = $giveUp ? OutboxStatus::Failed : OutboxStatus::Pending;
     }
+
+    /**
+     * Ręczne ponowienie z panelu (np. po naprawie konfiguracji SMTP).
+     */
+    public function requeue(\DateTimeImmutable $now): void
+    {
+        if (OutboxStatus::Sent === $this->status) {
+            return;
+        }
+        $this->status = OutboxStatus::Pending;
+        $this->nextAttemptAt = $now;
+        $this->attempts = 0;
+    }
 }

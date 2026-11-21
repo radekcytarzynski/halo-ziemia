@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+{% import '_macros.html.twig' as ui %}
+
+{% block title %}{{ rule ? 'Reguła: ' ~ rule.displayName : 'Nowa reguła' }}{% endblock %}
+
+{% block content %}
+    <div class="page-head">
+        <h1>{{ rule ? 'Reguła: ' ~ rule.displayName : 'Nowa reguła' }}</h1>
+        <a class="btn btn-sm" href="{{ path('app_device_show', {id: device.id, _fragment: 'rules'}) }}">← {{ device.name }}</a>
+    </div>
+
+    {{ form_start(form, {attr: {class: 'form card form-narrow', novalidate: 'novalidate'}}) }}
+        {{ form_row(form.label) }}
+        <div class="grid-2">
+            {{ form_row(form.source) }}
+            {{ form_row(form.target) }}
+        </div>
+        <div class="grid-2">
+            {{ form_row(form.warnThreshold) }}
+            {{ form_row(form.critThreshold) }}
+        </div>
+        <p class="hint">Dla checków progi są ignorowane – stan wynika ze statusu zgłoszonego przez agenta (warn → WARN, fail → CRIT).</p>
+        {{ form_row(form.enabled) }}
+
+        <details class="advanced"{% if not form.vars.valid %} open{% endif %}>
+            <summary>Zaawansowane</summary>
+            {{ form_row(form.operator) }}
+            <div class="grid-2">
+                {{ form_row(form.consecutiveSamples) }}
+                {{ form_row(form.hysteresis) }}
+            </div>
+        </details>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ rule ? 'Zapisz' : 'Dodaj regułę' }}</button>
+        </div>
+    {{ form_end(form) }}
+
+    {% if rule %}
+        <section class="card danger-zone">
+            {{ ui.post_button(path('app_rule_delete', {id: rule.id}), 'rule-delete' ~ rule.id, 'Usuń regułę', 'btn btn-danger', 'Usunąć regułę „' ~ rule.displayName ~ '”? Otwarte alarmy tej reguły zostaną zamknięte.') }}
+        </section>
+    {% endif %}
+
+    <datalist id="metric-keys">
+        {% set snapshot_metrics = device.lastSnapshot.metrics|default({}) %}
+        {% for key, value in snapshot_metrics %}<option value="{{ key }}">{% endfor %}
+    </datalist>
+{% endblock %}

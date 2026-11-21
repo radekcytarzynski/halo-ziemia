@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ustawienia{% endblock %}
+
+{% block content %}
+    <div class="page-head"><h1>Ustawienia</h1></div>
+
+    <div class="grid-2">
+        {{ form_start(form, {attr: {class: 'form card', novalidate: 'novalidate'}}) }}
+            <h2>Alarmy i powiadomienia</h2>
+            {{ form_row(form.missed_intervals_threshold) }}
+            {{ form_row(form.reminder_interval_hours) }}
+            {{ form_row(form.mail_from, {attr: {placeholder: mail_from_effective}}) }}
+            {{ form_row(form.mail_from_name) }}
+            <h2>Retencja danych</h2>
+            {{ form_row(form.retention_raw_days, {help: 'Próbki co minutę – używane przez wykresy 24 h i 7 dni.'}) }}
+            {{ form_row(form.retention_rollup_days, {help: 'Agregaty godzinne (wykresy 30 dni i rok) oraz dziennik zdarzeń.'}) }}
+            <div class="form-actions"><button type="submit" class="btn btn-primary">Zapisz</button></div>
+        {{ form_end(form) }}
+
+        <section class="card">
+            <h2>Cron</h2>
+            {% if cron.stale %}
+                <div class="banner banner-crit">{% if cron.last_tick_at %}Ostatni <code>app:tick</code> {{ cron.last_tick_at|hz_ago }} – cron nie działa.{% else %}<code>app:tick</code> jeszcze się nie wykonał.{% endif %}</div>
+            {% else %}
+                <p><span class="status status-ok">OK</span> ostatni <code>app:tick</code> {{ cron.last_tick_at|hz_ago }}</p>
+            {% endif %}
+            <p class="muted small">Wpisy crona w panelu hostingu (ścieżkę dostosuj do katalogu wydania):</p>
+            <div class="snippet">
+                <pre id="cron-lines"><code>* * * * * php {{ project_dir }}/bin/console app:tick --no-interaction &gt;/dev/null 2&gt;&amp;1
+5 * * * * php {{ project_dir }}/bin/console app:rollup --no-interaction &gt;/dev/null 2&gt;&amp;1
+30 3 * * * php {{ project_dir }}/bin/console app:retention --no-interaction &gt;/dev/null 2&gt;&amp;1</code></pre>
+                <button type="button" class="btn btn-sm copy-btn" data-copy-target="cron-lines">Kopiuj</button>
+            </div>
+
+            <h2 class="mt">Watchdog</h2>
+            <p>{% if watchdog_configured %}<span class="status status-ok">włączony</span> Po każdym udanym ticku wysyłany jest ping do <code>WATCHDOG_URL</code>.{% else %}<span class="status status-pending">wyłączony</span> Ustaw <code>WATCHDOG_URL</code> (np. healthchecks.io), aby dostać alarm, gdy przestanie działać sam monitor.{% endif %}</p>
+
+            <h2 class="mt">Nadawca</h2>
+            <p class="small">Maile wychodzą z adresu <code>{{ mail_from_effective }}</code>. Przetestuj wysyłkę na stronie odbiorcy.</p>
+        </section>
+    </div>
+{% endblock %}

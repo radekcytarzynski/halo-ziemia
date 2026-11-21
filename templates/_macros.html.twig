@@ -1,0 +1,26 @@
+{% macro status(value, label) -%}
+    <span class="status status-{{ value }}">{{ label }}</span>
+{%- endmacro %}
+
+{# Przycisk akcji POST z tokenem CSRF (bez JS). #}
+{% macro post_button(url, csrf_id, label, class = 'btn btn-sm', confirm = null, fields = {}) -%}
+    <form method="post" action="{{ url }}" class="inline-form"{% if confirm %} data-confirm="{{ confirm }}"{% endif %}>
+        <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+        {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        <button type="submit" class="{{ class }}">{{ label }}</button>
+    </form>
+{%- endmacro %}
+
+{% macro pagination(route, params, page, pages) %}
+    {% if pages > 1 %}
+        <nav class="pagination" aria-label="Strony">
+            {% if page > 1 %}<a class="btn btn-sm" href="{{ path(route, params|merge({page: page - 1})) }}">← Nowsze</a>{% endif %}
+            <span class="muted">Strona {{ page }} z {{ pages }}</span>
+            {% if page < pages %}<a class="btn btn-sm" href="{{ path(route, params|merge({page: page + 1})) }}">Starsze →</a>{% endif %}
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+{% macro severity(severity) -%}
+    {% if severity %}<span class="status status-{{ severity.value }}">{{ severity.label }}</span>{% endif %}
+{%- endmacro %}

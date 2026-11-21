@@ -9,6 +9,7 @@ use App\Enum\RuleSource;
 use App\Repository\AlertRuleRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
  * Reguła alarmu per urządzenie.
@@ -67,6 +68,17 @@ class AlertRule
         $this->device = $device;
         $this->source = $source;
         $this->target = $target;
+    }
+
+    #[Assert\Callback]
+    public function validate(ExecutionContextInterface $context): void
+    {
+        if (substr_count($this->target, '*') > 1) {
+            $context->buildViolation('Cel może zawierać najwyżej jeden znak „*”.')->atPath('target')->addViolation();
+        }
+        if (RuleSource::Metric === $this->source && null === $this->warnThreshold && null === $this->critThreshold) {
+            $context->buildViolation('Podaj co najmniej jeden próg (WARN lub CRIT).')->atPath('warnThreshold')->addViolation();
+        }
     }
 
     public function getId(): ?int

@@ -1,0 +1,39 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Odbiorcy{% endblock %}
+
+{% block content %}
+    <div class="page-head">
+        <h1>Odbiorcy powiadomień</h1>
+        <a class="btn btn-primary" href="{{ path('app_recipient_new') }}">+ Dodaj odbiorcę</a>
+    </div>
+
+    {% if recipients is empty %}
+        <section class="empty-state">
+            <h2>Nikt nie dostaje powiadomień</h2>
+            <p class="muted">Alarmy są oceniane i zapisywane w dzienniku, ale nie zostaną nikomu wysłane, dopóki nie dodasz odbiorcy.</p>
+        </section>
+    {% else %}
+        <div class="table-wrap card card-flush">
+            <table class="table">
+                <thead><tr><th>Odbiorca</th><th>Kanał</th><th>Subskrypcje</th><th></th></tr></thead>
+                <tbody>
+                {% for r in recipients %}
+                    <tr{% if not r.enabled %} class="is-disabled"{% endif %}>
+                        <td><strong>{{ r.name }}</strong><br><span class="muted small">{{ r.address }}</span>{% if not r.enabled %} <span class="tag">nieaktywny</span>{% endif %}</td>
+                        <td>{{ r.channel.label }}</td>
+                        <td class="small">
+                            {% for s in subscriptions[r.id]|default([]) %}
+                                <div>{{ s.device ? s.device.name : 'Wszystkie urządzenia' }} · od {{ s.minSeverity.label }}{% if s.notifyRecovery %} · +odzyskano{% endif %}</div>
+                            {% else %}
+                                <span class="muted">brak – nie dostaje powiadomień</span>
+                            {% endfor %}
+                        </td>
+                        <td class="actions"><a class="btn btn-sm" href="{{ path('app_recipient_edit', {id: r.id}) }}">Edytuj</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

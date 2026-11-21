@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+{% import '_macros.html.twig' as ui %}
+
+{% block title %}{{ recipient.name }}{% endblock %}
+
+{% block content %}
+    <div class="page-head">
+        <h1>{{ recipient.name }}</h1>
+        <div class="page-actions">
+            {{ ui.post_button(path('app_recipient_test', {id: recipient.id}), 'recipient' ~ recipient.id, 'Wyślij testowy mail') }}
+            <a class="btn btn-sm" href="{{ path('app_recipient_index') }}">← Odbiorcy</a>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        {{ form_start(form, {attr: {class: 'form card', novalidate: 'novalidate'}}) }}
+            <h2>Dane</h2>
+            {{ form_widget(form) }}
+            <div class="form-actions"><button type="submit" class="btn btn-primary">Zapisz</button></div>
+        {{ form_end(form) }}
+
+        <section class="card">
+            <h2>Subskrypcje</h2>
+            {% if subscriptions is empty %}
+                <p class="muted">Brak – ten odbiorca nie dostaje powiadomień.</p>
+            {% else %}
+                <ul class="state-list">
+                    {% for s in subscriptions %}
+                        <li>
+                            <span><strong>{{ s.device ? s.device.name : 'Wszystkie urządzenia' }}</strong><br>
+                            <span class="muted small">od {{ s.minSeverity.label }}{{ s.notifyRecovery ? ', z „odzyskano”' : ', bez „odzyskano”' }}</span></span>
+                            {{ ui.post_button(path('app_subscription_delete', {id: s.id}), 'recipient' ~ recipient.id, 'Usuń', 'btn btn-sm btn-danger') }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            <h3>Dodaj subskrypcję</h3>
+            {{ form_start(subscription_form, {attr: {class: 'form'}}) }}
+                {{ form_widget(subscription_form) }}
+                <div class="form-actions"><button type="submit" class="btn btn-sm">Dodaj</button></div>
+            {{ form_end(subscription_form) }}
+        </section>
+    </div>
+
+    <section class="card danger-zone">
+        {{ ui.post_button(path('app_recipient_delete', {id: recipient.id}), 'recipient' ~ recipient.id, 'Usuń odbiorcę', 'btn btn-danger', 'Usunąć odbiorcę ' ~ recipient.address ~ '?') }}
+    </section>
+{% endblock %}

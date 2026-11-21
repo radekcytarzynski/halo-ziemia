@@ -1,0 +1,15 @@
+{% import '_macros.html.twig' as ui %}
+{% if events is empty %}
+    <p class="muted">Brak zdarzeń.</p>
+{% else %}
+    <ol class="timeline">
+        {% for e in events %}
+            <li class="timeline-item{% if e.severity %} timeline-{{ e.severity.value }}{% endif %}">
+                <time datetime="{{ e.createdAt|date('c', 'UTC') }}" title="{{ e.createdAt|hz_ago }}">{{ e.createdAt|date('Y-m-d H:i:s') }}</time>
+                <span class="timeline-type">{{ e.type.label }}</span>
+                {% if show_device and e.device %}<a href="{{ path('app_device_show', {id: e.device.id}) }}" class="timeline-device">{{ e.device.name }}</a>{% endif %}
+                <span class="timeline-message">{{ ui.severity(e.severity) }} {{ e.message }}</span>
+            </li>
+        {% endfor %}
+    </ol>
+{% endif %}

@@ -1,0 +1,33 @@
+{% extends 'base.html.twig' %}
+{% import '_macros.html.twig' as ui %}
+
+{% block title %}Urządzenia{% endblock %}
+
+{% block content %}
+    <div class="page-head">
+        <h1>Urządzenia</h1>
+        <a class="btn btn-primary" href="{{ path('app_device_new') }}">+ Dodaj urządzenie</a>
+    </div>
+
+    {% if devices is empty %}
+        <section class="empty-state"><h2>Brak urządzeń</h2><p class="muted">Dodaj pierwsze urządzenie, aby wygenerować token agenta.</p></section>
+    {% else %}
+        <div class="table-wrap card card-flush">
+            <table class="table">
+                <thead><tr><th>Nazwa</th><th>Status</th><th>Ostatni kontakt</th><th class="hide-sm">Agent</th><th class="hide-sm">Lokalizacja</th><th></th></tr></thead>
+                <tbody>
+                {% for d in devices %}
+                    <tr>
+                        <td><a href="{{ path('app_device_show', {id: d.id}) }}"><strong>{{ d.name }}</strong></a><br><span class="muted mono small">{{ d.slug }}</span></td>
+                        <td>{{ ui.status(d.status.value, d.status.label) }}</td>
+                        <td>{% if d.lastSeenAt %}<span title="{{ d.lastSeenAt|date('Y-m-d H:i:s') }}">{{ d.lastSeenAt|hz_ago }}</span>{% else %}<span class="muted">nigdy</span>{% endif %}</td>
+                        <td class="hide-sm mono small">{{ d.lastAgentVersion ?? '–' }}</td>
+                        <td class="hide-sm">{{ d.location ?? '–' }}</td>
+                        <td class="actions"><a class="btn btn-sm" href="{{ path('app_device_edit', {id: d.id}) }}">Edytuj</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

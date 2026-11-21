@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ device ? 'Edycja: ' ~ device.name : 'Nowe urządzenie' }}{% endblock %}
+
+{% block importmap %}{{ importmap(['app', 'device-form']) }}{% endblock %}
+
+{% block content %}
+    <div class="page-head">
+        <h1>{{ device ? 'Edycja: ' ~ device.name : 'Nowe urządzenie' }}</h1>
+        {% if device %}<a class="btn btn-sm" href="{{ path('app_device_show', {id: device.id}) }}">← Wróć</a>{% endif %}
+    </div>
+
+    {{ form_start(form, {attr: {class: 'form card form-narrow', novalidate: 'novalidate'}}) }}
+        {{ form_row(form.name) }}
+        {{ form_row(form.slug) }}
+        {{ form_row(form.description) }}
+        {{ form_row(form.location) }}
+        {{ form_row(form.enabled) }}
+
+        <fieldset class="fieldset">
+            <legend>Heartbeat</legend>
+            <div class="grid-2">
+                {{ form_row(form.expectedIntervalSeconds) }}
+                {{ form_row(form.missedIntervalsThreshold, {attr: {placeholder: global_missed}}) }}
+            </div>
+            <details class="advanced">
+                <summary>Zaawansowane</summary>
+                {{ form_row(form.graceSeconds, {help: 'Doliczany do czasu oczekiwania – na opóźnienia sieci i crona.'}) }}
+            </details>
+            <p class="hint" data-hb-preview data-global-missed="{{ global_missed }}"></p>
+        </fieldset>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ device ? 'Zapisz' : 'Dodaj urządzenie' }}</button>
+        </div>
+    {{ form_end(form) }}
+
+    {% if device %}
+        <section class="card danger-zone">
+            <h2>Usuwanie</h2>
+            <p class="muted">Usuwa urządzenie wraz z metrykami, regułami, tokenami i historią. Nie da się tego cofnąć.</p>
+            {% import '_macros.html.twig' as ui %}
+            {{ ui.post_button(path('app_device_delete', {id: device.id}), 'device-delete' ~ device.id, 'Usuń urządzenie', 'btn btn-danger', 'Usunąć „' ~ device.name ~ '” wraz z całą historią?') }}
+        </section>
+    {% endif %}
+{% endblock %}

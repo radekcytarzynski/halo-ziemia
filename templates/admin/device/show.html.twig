@@ -1,23 +1,240 @@
 {% extends 'base.html.twig' %}
+{% import '_macros.html.twig' as ui %}
 
 {% block title %}{{ device.name }}{% endblock %}
 
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('lib/uplot/uPlot.min.css') }}">
+{% endblock %}
+{% block importmap %}{{ importmap(['app', 'charts']) }}{% endblock %}
+
 {% block content %}
+    {% set now = hz_now() %}
     <div class="page-head">
-        <h1>{{ device.name }}</h1>
-        <span class="status status-{{ device.status.value }}">{{ device.status.label }}</span>
+        <div>
+            <h1>{{ device.name }}</h1>
+            <p class="muted small mono">{{ device.slug }}{% if device.location %} · {{ device.location }}{% endif %}</p>
+        </div>
+        <div class="page-actions">
+            {{ ui.status(device.status.value, device.status.label) }}
+            {% if device.isMutedAt(now) %}<span class="tag tag-muted">serwis do {{ device.mutedUntil|date('H:i') }}</span>{% endif %}
+            <a class="btn btn-sm" href="{{ path('app_device_edit', {id: device.id}) }}">Edytuj</a>
+        </div>
     </div>
 
-    <section class="card">
-        <p>Ostatni kontakt: {% if device.lastSeenAt %}{{ device.lastSeenAt|date('Y-m-d H:i:s') }} ({{ device.lastSeenAt|hz_ago }}){% else %}brak{% endif %}</p>
-        {% if device.isMutedAt(hz_now()) %}<p>Tryb serwisowy do {{ device.mutedUntil|date('Y-m-d H:i') }}</p>{% endif %}
-        <h2>Stany alarmowe</h2>
-        <ul>
-            {% for state in states %}
-                <li><span class="status status-{{ state.severity.value }}">{{ state.severity.label }}</span> {{ state.title }}{% if state.lastMessage %} – {{ state.lastMessage }}{% endif %}</li>
+    {% if device.description %}<p class="lead">{{ device.description }}</p>{% endif %}
+
+    <nav class="subnav" aria-label="Sekcje">
+        <a href="#overview">Przegląd</a><a href="#charts">Wykresy</a><a href="#rules">Reguły</a><a href="#tokens">Tokeny i agent</a><a href="#timeline">Oś czasu</a>
+    </nav>
+
+    {# ---------- Przegląd ---------- #}
+    <section id="overview" class="grid-2 section">
+        <div class="card">
+            <h2>Stan</h2>
+            <dl class="kv">
+                <dt>Ostatni kontakt</dt>
+                <dd>{% if device.lastSeenAt %}{{ device.lastSeenAt|date('Y-m-d H:i:s') }} <span class="muted">({{ device.lastSeenAt|hz_ago }})</span>{% else %}<span class="muted">brak – czeka na pierwszy heartbeat</span>{% endif %}</dd>
+                <dt>Heartbeat</dt>
+                <dd>co {{ device.expectedIntervalSeconds|hz_duration }}, alarm po {{ (device.expectedIntervalSeconds * missed_threshold + device.graceSeconds)|hz_duration }} ciszy</dd>
+                <dt>Agent</dt>
+                <dd class="mono">{{ device.lastAgentVersion ?? '–' }}{% if device.lastIp %} · {{ device.lastIp }}{% endif %}</dd>
+                {% if device.lastSnapshot.hostname is defined and device.lastSnapshot.hostname %}<dt>Hostname</dt><dd class="mono">{{ device.lastSnapshot.hostname }}</dd>{% endif %}
+            </dl>
+
+            <h3>Stany alarmowe</h3>
+            {% if states is empty %}
+                <p class="muted">Brak ocenionych reguł.</p>
             {% else %}
-                <li class="muted">Brak ocenionych reguł.</li>
-            {% endfor %}
-        </ul>
+                <ul class="state-list">
+                    {% for state in states %}
+                        {% if state.rule is null or state.rule.enabled %}
+                            <li>
+                                {{ ui.status(state.severity.value, state.severity.label) }}
+                                <span>{{ state.title }}{% if state.lastMessage %} <span class="muted">– {{ state.lastMessage }}</span>{% endif %}</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if checks is not empty %}
+                <h3>Checki agenta</h3>
+                <ul class="state-list">
+                    {% for c in checks %}
+                        <li>
+                            {{ ui.status(c.status.toSeverity.value, c.status.value|upper) }}
+                            <span><strong>{{ c.name }}</strong>{% if c.message %} – {{ c.message }}{% endif %}
+                                <span class="muted small">{% if c.lastSuccessAt %}ostatni sukces {{ c.lastSuccessAt|hz_ago }}{% else %}brak udanego wykonania{% endif %}</span></span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>Tryb serwisowy</h2>
+            {% if device.isMutedAt(now) %}
+                <p>Powiadomienia wstrzymane do <strong>{{ device.mutedUntil|date('Y-m-d H:i') }}</strong>. Zdarzenia są nadal zapisywane.</p>
+                {{ ui.post_button(path('app_device_unmute', {id: device.id}), 'device-mute' ~ device.id, 'Zakończ teraz') }}
+            {% else %}
+                <p class="muted">Wycisza powiadomienia, np. na czas restartu. Po zakończeniu przyjdzie jedno powiadomienie, jeśli problem nadal trwa.</p>
+                <form method="post" action="{{ path('app_device_mute', {id: device.id}) }}" class="inline-row">
+                    <input type="hidden" name="_token" value="{{ csrf_token('device-mute' ~ device.id) }}">
+                    <label for="mute-minutes" class="visually-hidden">Czas</label>
+                    <select id="mute-minutes" name="minutes">
+                        {% for minutes, label in mute_durations %}<option value="{{ minutes }}"{% if minutes == 60 %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm">Włącz tryb serwisowy</button>
+                </form>
+            {% endif %}
+
+            <h2 class="mt">Monitorowanie</h2>
+            <p class="muted">{{ device.enabled ? 'Urządzenie jest monitorowane.' : 'Monitorowanie wyłączone – status PAUSED, bez alarmów.' }}</p>
+            {{ ui.post_button(path('app_device_toggle', {id: device.id}), 'device-toggle' ~ device.id, device.enabled ? 'Wyłącz monitorowanie' : 'Włącz monitorowanie') }}
+        </div>
     </section>
+
+    {# ---------- Wykresy ---------- #}
+    <section id="charts" class="section">
+        <div class="section-head">
+            <h2>Wykresy</h2>
+            <div class="segmented" role="group" aria-label="Zakres">
+                {% for r in ranges %}
+                    <a class="btn btn-sm{% if r == range %} is-active{% endif %}" href="{{ path('app_device_show', {id: device.id, range: r.value, _fragment: 'charts'}) }}" {% if r == range %}aria-current="true"{% endif %}>{{ r.label }}</a>
+                {% endfor %}
+            </div>
+        </div>
+        {% if chart_keys is empty %}
+            <p class="muted">Brak danych – wykresy pojawią się po pierwszych heartbeatach z metrykami.</p>
+        {% else %}
+            <div class="charts" data-tz="{{ app_timezone }}">
+                {% for key in chart_keys %}
+                    <figure class="card chart-card">
+                        <figcaption class="mono small">{{ key }}</figcaption>
+                        <div class="chart" data-chart-url="{{ path('app_device_chart', {id: device.id, metric: key, range: range.value}) }}"></div>
+                    </figure>
+                {% endfor %}
+            </div>
+            {% if metric_keys|length > chart_keys|length %}
+                <form class="inline-row mt" data-chart-picker data-chart-base="{{ path('app_device_chart', {id: device.id}) }}" data-range="{{ range.value }}">
+                    <label for="chart-metric">Inna metryka</label>
+                    <select id="chart-metric">
+                        {% for key in metric_keys %}{% if key not in chart_keys %}<option value="{{ key }}">{{ key }}</option>{% endif %}{% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm">Pokaż wykres</button>
+                </form>
+            {% endif %}
+        {% endif %}
+
+        {% if metrics is not empty %}
+            <details class="card mt">
+                <summary>Wszystkie bieżące metryki ({{ metrics|length }})</summary>
+                <div class="table-wrap">
+                    <table class="table table-compact">
+                        <tbody>
+                        {% for key, value in metrics %}
+                            <tr><td class="mono small">{{ key }}</td><td class="num">{{ value|hz_metric(key) }}</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        {% endif %}
+    </section>
+
+    {# ---------- Reguły ---------- #}
+    <section id="rules" class="section">
+        <div class="section-head">
+            <h2>Reguły alarmów</h2>
+            <a class="btn btn-sm" href="{{ path('app_rule_new', {id: device.id}) }}">+ Reguła</a>
+        </div>
+        {{ include('admin/rule/_table.html.twig', {rules: active_rules, empty: 'Żadna reguła nie pasuje jeszcze do metryk tego urządzenia.'}) }}
+        {% if unused_rules is not empty %}
+            <details class="card mt">
+                <summary>Nieużywane na tym urządzeniu ({{ unused_rules|length }}) – brak pasujących metryk</summary>
+                {{ include('admin/rule/_table.html.twig', {rules: unused_rules, empty: ''}) }}
+            </details>
+        {% endif %}
+    </section>
+
+    {# ---------- Tokeny i agent ---------- #}
+    <section id="tokens" class="section">
+        <div class="section-head"><h2>Tokeny i agent</h2></div>
+
+        {% if new_token %}
+            <div class="card card-accent">
+                <h3>Nowy token – skopiuj go teraz</h3>
+                <p class="muted small">Ze względów bezpieczeństwa token jest pokazywany tylko raz (w bazie przechowujemy wyłącznie jego hash).</p>
+                <div class="snippet">
+                    <pre id="new-token"><code>{{ new_token }}</code></pre>
+                    <button type="button" class="btn btn-sm copy-btn" data-copy-target="new-token">Kopiuj</button>
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="card mt">
+            {% set active_tokens = tokens|filter(t => t.isValidAt(now)) %}
+            {% if tokens is not empty %}
+                <div class="table-wrap">
+                    <table class="table table-compact">
+                        <thead><tr><th>Prefiks</th><th>Utworzony</th><th>Ostatnio użyty</th><th>Stan</th><th></th></tr></thead>
+                        <tbody>
+                        {% for t in tokens %}
+                            <tr>
+                                <td class="mono">{{ t.prefix }}…</td>
+                                <td>{{ t.createdAt|date('Y-m-d H:i') }}</td>
+                                <td>{{ t.lastUsedAt ? t.lastUsedAt|hz_ago : 'nigdy' }}</td>
+                                <td>
+                                    {% if t.revokedAt %}<span class="tag">unieważniony</span>
+                                    {% elseif not t.isValidAt(now) %}<span class="tag">wygasł</span>
+                                    {% elseif t.expiresAt %}<span class="tag tag-muted">wygasa {{ t.expiresAt|date('Y-m-d H:i') }}</span>
+                                    {% else %}<span class="tag tag-ok">aktywny</span>{% endif %}
+                                </td>
+                                <td class="actions">
+                                    {% if t.isValidAt(now) %}{{ ui.post_button(path('app_token_revoke', {id: t.id}), 'token' ~ device.id, 'Unieważnij', 'btn btn-sm btn-danger', 'Unieważnić token ' ~ t.prefix ~ '…? Agent używający go przestanie się meldować.') }}{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="muted">Urządzenie nie ma jeszcze tokenu.</p>
+            {% endif %}
+
+            <div class="inline-row mt">
+                {% if active_tokens is empty %}
+                    {{ ui.post_button(path('app_token_create', {id: device.id}), 'token' ~ device.id, 'Utwórz token', 'btn btn-primary') }}
+                {% else %}
+                    <form method="post" action="{{ path('app_token_rotate', {id: device.id}) }}" class="inline-row">
+                        <input type="hidden" name="_token" value="{{ csrf_token('token' ~ device.id) }}">
+                        <label for="rotate-grace">Stary token ważny jeszcze</label>
+                        <select id="rotate-grace" name="grace">
+                            <option value="0">natychmiast wygasa</option>
+                            <option value="3600">1 h</option>
+                            <option value="86400" selected>24 h</option>
+                            <option value="604800">7 dni</option>
+                        </select>
+                        <button type="submit" class="btn btn-sm">Rotuj token</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt">
+            {{ include('admin/device/_agent_snippet.html.twig', {token: new_token}) }}
+        </div>
+    </section>
+
+    {# ---------- Oś czasu ---------- #}
+    <section id="timeline" class="section">
+        <div class="section-head">
+            <h2>Oś czasu</h2>
+            <a class="btn btn-sm" href="{{ path('app_log_events', {device: device.id}) }}">Pełny dziennik</a>
+        </div>
+        {{ include('admin/log/_events.html.twig', {events: events, show_device: false}) }}
+    </section>
+
+    <datalist id="metric-keys">{% for key in metric_keys %}<option value="{{ key }}">{% endfor %}</datalist>
 {% endblock %}

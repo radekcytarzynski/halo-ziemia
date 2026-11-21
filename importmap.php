@@ -1,19 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 /**
- * Returns the importmap for this application.
- *
- * - "path" is a path inside the asset mapper system. Use the
- *     "debug:asset-map" command to see the full list of paths.
- *
- * - "entrypoint" (JavaScript only) set to true for any module that will
- *     be used as an "entrypoint" (and passed to the importmap() Twig function).
- *
- * The "importmap:require" command can be used to add new entries to this file.
+ * Importmapa AssetMappera: moduły JS ładowane bez bundlera i bez CDN.
+ * Każda strona ładuje "app" + ewentualnie własny entrypoint (blok importmap w szablonie).
  */
 return [
-    'app' => [
-        'path' => './assets/app.js',
-        'entrypoint' => true,
-    ],
+    'app' => ['path' => './assets/app.js', 'entrypoint' => true],
+    'dashboard' => ['path' => './assets/js/dashboard.js', 'entrypoint' => true],
+    'charts' => ['path' => './assets/js/charts.js', 'entrypoint' => true],
+    'device-form' => ['path' => './assets/js/device-form.js', 'entrypoint' => true],
 ];

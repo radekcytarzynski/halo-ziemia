@@ -2,14 +2,18 @@
 
 {% block title %}Pulpit{% endblock %}
 
+{% block importmap %}{{ importmap(['app', 'dashboard']) }}{% endblock %}
+
 {% block content %}
     <div class="page-head">
         <h1>Pulpit</h1>
+        <div class="page-actions">
+            <span class="muted small refresh-note" data-refresh-note>Odświeżanie co 15 s</span>
+            <a class="btn btn-sm" href="{{ path('app_device_new') }}">+ Urządzenie</a>
+        </div>
     </div>
 
-    <section class="empty-state">
-        {{ include('_logo.svg.twig') }}
-        <h2>Brak urządzeń</h2>
-        <p class="muted">Gdy dodasz urządzenie i uruchomisz na nim agenta, pojawi się tutaj jego karta ze statusem.</p>
-    </section>
+    <div id="dashboard" data-refresh-url="{{ path('app_dashboard_cards') }}" data-refresh-seconds="15" aria-live="polite">
+        {{ include('admin/_dashboard_cards.html.twig') }}
+    </div>
 {% endblock %}

@@ -1,0 +1,4 @@
+<nav class="tabs" aria-label="Dziennik">
+    <a href="{{ path('app_log_events') }}"{% if active == 'events' %} aria-current="page"{% endif %}>Zdarzenia</a>
+    <a href="{{ path('app_log_notifications') }}"{% if active == 'notifications' %} aria-current="page"{% endif %}>Powiadomienia</a>
+</nav>

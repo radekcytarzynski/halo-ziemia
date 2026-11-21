@@ -1,0 +1,14 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nowy odbiorca{% endblock %}
+
+{% block content %}
+    <div class="page-head">
+        <h1>Nowy odbiorca</h1>
+        <a class="btn btn-sm" href="{{ path('app_recipient_index') }}">← Odbiorcy</a>
+    </div>
+    {{ form_start(form, {attr: {class: 'form card form-narrow', novalidate: 'novalidate'}}) }}
+        {{ form_widget(form) }}
+        <div class="form-actions"><button type="submit" class="btn btn-primary">Dodaj</button></div>
+    {{ form_end(form) }}
+{% endblock %}

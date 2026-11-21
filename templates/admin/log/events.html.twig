@@ -1,0 +1,38 @@
+{% extends 'base.html.twig' %}
+{% import '_macros.html.twig' as ui %}
+
+{% block title %}Dziennik zdarzeń{% endblock %}
+
+{% block content %}
+    <div class="page-head"><h1>Dziennik</h1></div>
+    {{ include('admin/log/_tabs.html.twig', {active: 'events'}) }}
+
+    <form method="get" class="filters card">
+        <label>Urządzenie
+            <select name="device">
+                <option value="">wszystkie</option>
+                {% for d in devices %}<option value="{{ d.id }}"{% if filter.device == d.id %} selected{% endif %}>{{ d.name }}</option>{% endfor %}
+            </select>
+        </label>
+        <label>Typ
+            <select name="type">
+                <option value="">wszystkie</option>
+                {% for t in types %}<option value="{{ t.value }}"{% if filter.type == t.value %} selected{% endif %}>{{ t.label }}</option>{% endfor %}
+            </select>
+        </label>
+        <label>Poziom
+            <select name="severity">
+                <option value="">wszystkie</option>
+                {% for s in severities %}<option value="{{ s.value }}"{% if filter.severity == s.value %} selected{% endif %}>{{ s.label }}</option>{% endfor %}
+            </select>
+        </label>
+        <button type="submit" class="btn btn-sm">Filtruj</button>
+        <a class="btn btn-sm" href="{{ path('app_log_events') }}">Wyczyść</a>
+    </form>
+
+    <p class="muted small">{{ total }} zdarzeń</p>
+    <div class="card">
+        {{ include('admin/log/_events.html.twig', {events: events, show_device: true}) }}
+    </div>
+    {{ ui.pagination('app_log_events', filter|filter(v => v is not null), page, pages) }}
+{% endblock %}

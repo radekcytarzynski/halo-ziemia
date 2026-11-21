@@ -9,8 +9,7 @@
     <link rel="icon" href="{{ asset('images/favicon.svg') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
     {% block stylesheets %}{% endblock %}
-    <script type="module" src="{{ asset('app.js') }}"></script>
-    {% block javascripts %}{% endblock %}
+    {% block importmap %}{{ importmap('app') }}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
 {% block body %}
@@ -24,8 +23,19 @@
             <span class="nav-toggle-bar" aria-hidden="true"></span>
         </button>
         <nav id="main-nav" class="main-nav" aria-label="Główna nawigacja">
-            {% set route = app.request.attributes.get('_route') %}
-            <a href="{{ path('app_dashboard') }}" {% if route == 'app_dashboard' %}aria-current="page"{% endif %}>Pulpit</a>
+            {% set route = app.request.attributes.get('_route')|default('') %}
+            {% set nav = [
+                {route: 'app_dashboard', label: 'Pulpit', prefixes: ['app_dashboard']},
+                {route: 'app_device_index', label: 'Urządzenia', prefixes: ['app_device', 'app_rule', 'app_token']},
+                {route: 'app_recipient_index', label: 'Odbiorcy', prefixes: ['app_recipient', 'app_subscription']},
+                {route: 'app_log_events', label: 'Dziennik', prefixes: ['app_log']},
+                {route: 'app_settings', label: 'Ustawienia', prefixes: ['app_settings']},
+            ] %}
+            {% for item in nav %}
+                {% set active = false %}
+                {% for prefix in item.prefixes %}{% if route starts with prefix %}{% set active = true %}{% endif %}{% endfor %}
+                <a href="{{ path(item.route) }}" {% if active %}aria-current="page"{% endif %}>{{ item.label }}</a>
+            {% endfor %}
             <a href="{{ path('app_logout') }}" class="nav-logout">Wyloguj</a>
         </nav>
     </header>

@@ -55,7 +55,7 @@ final readonly class AlertEngine
         $states = $this->states->findForDeviceIndexed($device);
 
         if ($device->isEnabled()) {
-            $this->observe($device, $this->heartbeatState($device, $states, $now), Severity::Ok, 1, null, 'Kontakt z agentem', $now);
+            $this->observe($device, $this->heartbeatState($device, $states, $now), Severity::Ok, 1, null, null, $now);
 
             if (null !== $heartbeat) {
                 foreach ($this->rules->findEnabledForDevice($device) as $rule) {

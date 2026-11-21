@@ -17,4 +17,9 @@ class MetricRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Metric::class);
     }
+
+    public function findOneByKey(string $key): ?Metric
+    {
+        return $this->findOneBy(['key' => $key]);
+    }
 }
