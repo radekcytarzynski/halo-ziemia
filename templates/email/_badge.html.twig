@@ -1,0 +1,2 @@
+{%- set colors = {ok: '#2f8a52', warn: '#b7791f', crit: '#c53030', down: '#a23b72'} -%}
+<span style="display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:{{ colors[severity.value] }}">{{ severity.label }}</span>

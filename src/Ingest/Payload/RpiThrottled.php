@@ -9,6 +9,8 @@ namespace App\Ingest\Payload;
  */
 final class RpiThrottled
 {
+    public const int NOW_MASK = 0xF;
+
     private const array FLAGS = [
         0 => 'Niskie napięcie (teraz)',
         1 => 'Ograniczona częstotliwość ARM (teraz)',

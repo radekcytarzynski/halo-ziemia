@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Device;
 
+use App\Alerting\DefaultRules;
 use App\Entity\Device;
 use App\Enum\EventType;
 use App\Repository\DeviceRepository;
@@ -40,6 +41,9 @@ final readonly class DeviceManager
         $device = new Device($name, $slug ?? $this->suggestSlug($name), $this->clock->now());
 
         $this->entityManager->persist($device);
+        foreach (DefaultRules::createFor($device) as $rule) {
+            $this->entityManager->persist($rule);
+        }
         $this->events->record($device, EventType::ConfigChange, \sprintf('Dodano urządzenie „%s”', $name));
         $this->entityManager->flush();
 

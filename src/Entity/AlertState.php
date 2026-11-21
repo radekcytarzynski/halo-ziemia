@@ -9,8 +9,10 @@ use App\Repository\AlertStateRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Bieżący stan alarmowy jednego podmiotu urządzenia: "heartbeat" albo "rule:{id}".
+ * Bieżący stan alarmowy jednego podmiotu urządzenia:
+ * "heartbeat", "rule:{id}" albo "rule:{id}:{klucz}" (reguły z wildcardem – osobny stan per dopasowanie).
  * candidate* realizują anty-flapping (zmiana stanu dopiero po N kolejnych ocenach).
+ * notifiedSeverity = stan, o którym ostatnio powiadomiono (null = nic/OK).
  */
 #[ORM\Entity(repositoryClass: AlertStateRepository::class)]
 #[ORM\Table(name: 'alert_state')]
@@ -28,8 +30,11 @@ class AlertState
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private Device $device;
 
-    #[ORM\Column(length: 64)]
+    #[ORM\Column(length: 255)]
     private string $subject;
+
+    #[ORM\Column(length: 255)]
+    private string $title;
 
     /** null dla podmiotu "heartbeat". */
     #[ORM\ManyToOne]
@@ -54,6 +59,13 @@ class AlertState
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $lastMessage = null;
 
+    /** Ostatnia obserwacja (do wykrywania metryk, które przestały być raportowane). */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $lastObservedAt = null;
+
+    #[ORM\Column(length: 8, nullable: true, enumType: Severity::class)]
+    private ?Severity $notifiedSeverity = null;
+
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastNotifiedAt = null;
 
@@ -64,10 +76,11 @@ class AlertState
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Incident $incident = null;
 
-    public function __construct(Device $device, string $subject, ?AlertRule $rule, \DateTimeImmutable $since)
+    public function __construct(Device $device, string $subject, string $title, ?AlertRule $rule, \DateTimeImmutable $since)
     {
         $this->device = $device;
         $this->subject = $subject;
+        $this->title = mb_substr($title, 0, 255);
         $this->rule = $rule;
         $this->since = $since;
     }
@@ -85,6 +98,16 @@ class AlertState
     public function getSubject(): string
     {
         return $this->subject;
+    }
+
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
+
+    public function setTitle(string $title): void
+    {
+        $this->title = mb_substr($title, 0, 255);
     }
 
     public function getRule(): ?AlertRule
@@ -134,10 +157,28 @@ class AlertState
         return $this->lastMessage;
     }
 
-    public function setLastObservation(?float $value, ?string $message): void
+    public function setLastObservation(?float $value, ?string $message, \DateTimeImmutable $at): void
     {
         $this->lastValue = $value;
-        $this->lastMessage = $message;
+        $this->lastMessage = null === $message ? null : mb_substr($message, 0, 500);
+        $this->lastObservedAt = $at;
+    }
+
+    public function getLastObservedAt(): ?\DateTimeImmutable
+    {
+        return $this->lastObservedAt;
+    }
+
+    public function getNotifiedSeverity(): ?Severity
+    {
+        return $this->notifiedSeverity;
+    }
+
+    public function markNotified(Severity $severity, \DateTimeImmutable $at, bool $reminder): void
+    {
+        $this->notifiedSeverity = Severity::Ok === $severity ? null : $severity;
+        $this->lastNotifiedAt = $at;
+        $this->reminderCount = $reminder ? $this->reminderCount + 1 : 0;
     }
 
     public function getLastNotifiedAt(): ?\DateTimeImmutable
@@ -145,19 +186,9 @@ class AlertState
         return $this->lastNotifiedAt;
     }
 
-    public function setLastNotifiedAt(?\DateTimeImmutable $lastNotifiedAt): void
-    {
-        $this->lastNotifiedAt = $lastNotifiedAt;
-    }
-
     public function getReminderCount(): int
     {
         return $this->reminderCount;
-    }
-
-    public function setReminderCount(int $reminderCount): void
-    {
-        $this->reminderCount = $reminderCount;
     }
 
     public function getIncident(): ?Incident

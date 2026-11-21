@@ -174,13 +174,25 @@ class AlertRule
         return $this->label ?? $this->target;
     }
 
-    /** Klucz podmiotu stanu alarmowego, np. "rule:12". */
-    public function subjectKey(): string
+    /**
+     * Klucz podmiotu stanu alarmowego: "rule:12" albo "rule:12:disk./mnt/backup.used_pct" dla wildcardów.
+     */
+    public function subjectKey(?string $matchedKey = null): string
     {
         if (null === $this->id) {
             throw new \LogicException('Reguła nie została jeszcze zapisana.');
         }
 
-        return 'rule:'.$this->id;
+        return null === $matchedKey || $matchedKey === $this->target
+            ? 'rule:'.$this->id
+            : 'rule:'.$this->id.':'.$matchedKey;
+    }
+
+    /**
+     * Tytuł stanu, np. "Zajętość dysku (/mnt/backup)".
+     */
+    public function titleFor(string $captured): string
+    {
+        return '' === $captured ? $this->getDisplayName() : \sprintf('%s (%s)', $this->getDisplayName(), $captured);
     }
 }

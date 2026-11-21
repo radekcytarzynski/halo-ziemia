@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ device.name }}{% endblock %}
+
+{% block content %}
+    <div class="page-head">
+        <h1>{{ device.name }}</h1>
+        <span class="status status-{{ device.status.value }}">{{ device.status.label }}</span>
+    </div>
+
+    <section class="card">
+        <p>Ostatni kontakt: {% if device.lastSeenAt %}{{ device.lastSeenAt|date('Y-m-d H:i:s') }} ({{ device.lastSeenAt|hz_ago }}){% else %}brak{% endif %}</p>
+        {% if device.isMutedAt(hz_now()) %}<p>Tryb serwisowy do {{ device.mutedUntil|date('Y-m-d H:i') }}</p>{% endif %}
+        <h2>Stany alarmowe</h2>
+        <ul>
+            {% for state in states %}
+                <li><span class="status status-{{ state.severity.value }}">{{ state.severity.label }}</span> {{ state.title }}{% if state.lastMessage %} – {{ state.lastMessage }}{% endif %}</li>
+            {% else %}
+                <li class="muted">Brak ocenionych reguł.</li>
+            {% endfor %}
+        </ul>
+    </section>
+{% endblock %}

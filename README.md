@@ -43,7 +43,9 @@ Wartości domyślne są w `.env`. Lokalne i produkcyjne nadpisania umieszczaj w 
 | `MAILER_DSN`           | np. `smtp://user:pass@smtp.example.com:587` |
 | `APP_BASE_URL`         | Publiczny adres panelu (linki w mailach z crona) |
 | `APP_TIMEZONE_DISPLAY` | Strefa prezentacji w UI, domyślnie `Europe/Warsaw` (baza zawsze UTC) |
+| `MAILER_FROM`          | Domyślny nadawca powiadomień (na hostingu zwykle adres skrzynki SMTP) |
 | `WATCHDOG_URL`         | Opcjonalny URL pingowany po każdym udanym `app:tick` |
+| `API_REQUIRE_HTTPS`    | `1` = API tylko po HTTPS (domyślnie) |
 | `LOCK_DSN`             | Domyślnie `flock` (pliki w `var/`) |
 
 ## API agentów
@@ -86,6 +88,26 @@ Spłaszczanie do kluczy metryk:
 - Format: `hz_` + 48 znaków base62 z CSPRNG. W bazie trzymany jest tylko SHA-256 i 10-znakowy prefiks do identyfikacji.
 - Rotacja wydaje nowy token, a dotychczasowe działają jeszcze przez okno przejściowe (domyślnie 24 h).
 - Pomocniczo w dev: `bin/console app:device:create "NAS Debian"` wypisuje token jeden raz.
+
+## Alarmy
+
+- **Stany:** `PENDING` (brak kontaktu, bez alarmów), `OK`, `WARN`, `CRIT`, `DOWN`, `PAUSED` (urządzenie wyłączone). Status urządzenia to najgorszy ze stanów składowych.
+- **DOWN:** `now > last_seen + interval × missed_threshold + grace`. Ocenia to `app:tick`; próg globalny jest w ustawieniach, można go nadpisać per urządzenie.
+- **Reguły** są oceniane przy odbiorze heartbeatu. Cel reguły może mieć jeden `*`, np. `disk.*.used_pct` obejmuje wszystkie dyski, a każdy ma osobny stan.
+  Anty-flapping: N kolejnych próbek potrzebnych do zmiany stanu (w obie strony). Histereza: powrót dopiero za progiem pomniejszonym o margines.
+- **Domyślne reguły** nowego urządzenia: dysk, i-węzły, pamięć, temperatura CPU i dysków, SMART, realokacje, NVMe, RAID, zasilanie RPi, wiek backupu (> 26 h WARN, > 50 h CRIT) i status checków.
+- **Powiadomienia** idą tylko przy zmianie stanu względem ostatnio zgłoszonego, plus przypomnienia (domyślnie co 6 h, 0 = wyłączone) i „odzyskano”.
+  Zmiany z jednej oceny trafiają do jednego maila per odbiorca. Subskrypcja „od CRIT” traktuje WARN jak OK.
+- **Tryb serwisowy** (`muted_until`): zdarzenia są zapisywane, a powiadomienia wstrzymane. Po końcu wyciszenia wychodzi jedno powiadomienie o bieżącym stanie, jeśli różni się od ostatnio zgłoszonego.
+- **Metryka, która przestała być raportowana** (np. odłączony dysk), jest zamykana jako OK po 24 h, o ile urządzenie się melduje.
+- **Outbox:** wiadomość jest zapisywana przed wysyłką. Błąd SMTP oznacza ponowienie z backoffem (1, 2, 5, 10, 30 min, potem co godzinę) przez ~2 doby.
+
+### Komendy
+
+| Komenda | Cron | Opis |
+|---------|------|------|
+| `app:tick` | co minutę | DOWN, przypomnienia, wysyłka outboxa, ping `WATCHDOG_URL`, zapis czasu ticku |
+| `app:notify:test <email>` | – | Natychmiastowy testowy e-mail (sprawdzenie `MAILER_DSN`) |
 
 ## Struktura
 

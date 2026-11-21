@@ -1,0 +1,46 @@
+{% extends 'email/_layout.html.twig' %}
+{% block title %}{{ device.name }}{% endblock %}
+{% block content %}
+    <h1 style="margin:0 0 4px;font-size:20px">{{ device.name }}</h1>
+    {% if reminder %}<p style="margin:0 0 16px;color:#7a838c">Przypomnienie: problem nadal trwa.</p>{% endif %}
+
+    {% if problems is not empty %}
+        <h2 style="font-size:15px;margin:16px 0 8px">{{ reminder ? 'Trwające problemy' : 'Problemy' }}</h2>
+        <table role="presentation" style="width:100%;border-collapse:collapse">
+            {% for item in problems %}
+                <tr>
+                    <td style="padding:8px 0;border-top:1px solid #eef1f3;vertical-align:top;width:70px">{{ include('email/_badge.html.twig', {severity: item.to}) }}</td>
+                    <td style="padding:8px 0;border-top:1px solid #eef1f3">
+                        <strong>{{ item.title }}</strong>{% if item.detail %}<br>{{ item.detail }}{% endif %}
+                        <br><span style="color:#7a838c;font-size:13px">od {{ item.since|date('Y-m-d H:i') }} ({{ item.since|hz_ago }}){% if not reminder and item.from.value != 'ok' %}, poprzednio {{ item.from.label }}{% endif %}</span>
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    {% if recoveries is not empty %}
+        <h2 style="font-size:15px;margin:16px 0 8px">Odzyskano</h2>
+        <table role="presentation" style="width:100%;border-collapse:collapse">
+            {% for item in recoveries %}
+                <tr>
+                    <td style="padding:8px 0;border-top:1px solid #eef1f3;vertical-align:top;width:70px">{{ include('email/_badge.html.twig', {severity: item.to}) }}</td>
+                    <td style="padding:8px 0;border-top:1px solid #eef1f3"><strong>{{ item.title }}</strong> <span style="color:#7a838c">(było {{ item.from.label }})</span>{% if item.detail %}<br>{{ item.detail }}{% endif %}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    <p style="margin:18px 0 6px"><strong>Ostatni kontakt:</strong>
+        {% if device.lastSeenAt %}{{ device.lastSeenAt|date('Y-m-d H:i') }} ({{ device.lastSeenAt|hz_ago }}){% else %}brak{% endif %}</p>
+
+    {% if key_metrics is not empty %}
+        <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;margin-top:6px">
+            {% for m in key_metrics %}
+                <tr><td style="padding:3px 0;color:#7a838c">{{ m.label }}</td><td style="padding:3px 0;text-align:right">{{ m.value|hz_metric(m.unit) }}</td></tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    <p style="margin:20px 0 0"><a href="{{ device_url }}" style="display:inline-block;padding:8px 16px;background:#3f9a8f;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Otwórz w panelu</a></p>
+{% endblock %}

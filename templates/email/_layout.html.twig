@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ block('title') }}</title></head>
+<body style="margin:0;padding:24px 12px;background:#f2f4f5;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#1c2025;font-size:15px;line-height:1.5">
+<div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dde2e6;border-radius:10px;overflow:hidden">
+    <div style="padding:14px 20px;background:#16191d;color:#e6eaee;font-weight:600">halo-ziemia</div>
+    <div style="padding:20px">{% block content %}{% endblock %}</div>
+    <div style="padding:12px 20px;border-top:1px solid #eef1f3;color:#7a838c;font-size:12px">Czas: {{ app_timezone }}. Wiadomość wygenerowana automatycznie.</div>
+</div>
+</body>
+</html>

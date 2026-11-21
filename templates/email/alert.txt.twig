@@ -1,0 +1,35 @@
+{{ device.name }}{% if reminder %} – problem nadal trwa{% endif %}
+
+
+{% if problems is not empty %}
+{{ reminder ? 'Trwające problemy' : 'Problemy' }}:
+{% for item in problems %}
+  * [{{ item.to.label }}] {{ item.title }}{% if item.detail %} – {{ item.detail }}{% endif %}
+
+    od {{ item.since|date('Y-m-d H:i') }} ({{ item.since|hz_ago }}){% if not reminder and item.from.value != 'ok' %}, poprzednio {{ item.from.label }}{% endif %}
+
+{% endfor %}
+
+{% endif %}
+{% if recoveries is not empty %}
+Odzyskano:
+{% for item in recoveries %}
+  * {{ item.title }} (było {{ item.from.label }}){% if item.detail %} – {{ item.detail }}{% endif %}
+
+{% endfor %}
+
+{% endif %}
+Ostatni kontakt: {% if device.lastSeenAt %}{{ device.lastSeenAt|date('Y-m-d H:i') }} ({{ device.lastSeenAt|hz_ago }}){% else %}brak{% endif %}
+
+{% if key_metrics is not empty %}
+
+Ostatnie znane metryki:
+{% for m in key_metrics %}
+  {{ m.label }}: {{ m.value|hz_metric(m.unit) }}
+{% endfor %}
+{% endif %}
+
+Panel: {{ device_url }}
+
+-- 
+halo-ziemia · czas: {{ app_timezone }}

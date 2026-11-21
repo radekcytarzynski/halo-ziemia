@@ -25,10 +25,10 @@ class Incident
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private Device $device;
 
-    #[ORM\Column(length: 64)]
+    #[ORM\Column(length: 255)]
     private string $subject;
 
-    #[ORM\Column(length: 190)]
+    #[ORM\Column(length: 255)]
     private string $title;
 
     #[ORM\Column(length: 8, enumType: Severity::class)]
@@ -44,7 +44,7 @@ class Incident
     {
         $this->device = $device;
         $this->subject = $subject;
-        $this->title = $title;
+        $this->title = mb_substr($title, 0, 255);
         $this->maxSeverity = $severity;
         $this->openedAt = $openedAt;
     }

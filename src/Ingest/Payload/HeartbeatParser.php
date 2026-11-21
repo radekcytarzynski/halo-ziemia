@@ -280,6 +280,8 @@ final class HeartbeatParser
         }
 
         $metrics['rpi.throttled'] = (float) $mask;
+        // Bity 0–3 = stan bieżący (bity 16–19 to historia od startu, zostają ustawione do restartu).
+        $metrics['rpi.throttled_now'] = (float) ($mask & RpiThrottled::NOW_MASK);
 
         return ['throttled' => $raw, 'flags' => RpiThrottled::describe($mask)];
     }

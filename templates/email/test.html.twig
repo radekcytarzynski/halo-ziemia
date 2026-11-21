@@ -1,0 +1,8 @@
+{% extends 'email/_layout.html.twig' %}
+{% block title %}Test powiadomień{% endblock %}
+{% block content %}
+    <h1 style="margin:0 0 8px;font-size:20px">Test powiadomień</h1>
+    <p>Jeśli widzisz tę wiadomość, konfiguracja wysyłki e-mail działa.</p>
+    <p style="color:#7a838c">Wysłano: {{ now|date('Y-m-d H:i:s') }}</p>
+    <p><a href="{{ panel_url }}">Otwórz panel</a></p>
+{% endblock %}

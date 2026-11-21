@@ -33,6 +33,7 @@ final class HeartbeatParserTest extends TestCase
             'mem.swap_used_kb' => 0.0,
             'raid.md0.degraded' => 0.0,
             'rpi.throttled' => 0.0,
+            'rpi.throttled_now' => 0.0,
             'smart.sda.passed' => 1.0,
             'smart.sda.pending' => 0.0,
             'smart.sda.power_on_hours' => 12000.0,
@@ -105,7 +106,7 @@ final class HeartbeatParserTest extends TestCase
         ];
         yield 'throttled RPi' => [
             ['rpi' => ['throttled' => '0x50005']],
-            ['rpi.throttled' => 327685.0],
+            ['rpi.throttled' => 327685.0, 'rpi.throttled_now' => 5.0],
         ];
         yield 'load tylko 1 min' => [
             ['load' => [1.5]],
