@@ -75,6 +75,22 @@ final readonly class DeviceManager
         $this->entityManager->flush();
     }
 
+    /**
+     * @param array<string, string> $labels identyfikator dysku => nazwa
+     */
+    public function updateDisks(Device $device, array $labels, ?string $dashboardDisk): void
+    {
+        ksort($labels);
+        if ($labels === $device->getDiskLabels() && $dashboardDisk === $device->getDashboardDisk()) {
+            return;
+        }
+        $device->setDiskLabels($labels);
+        $device->setDashboardDisk($dashboardDisk);
+        $device->touch($this->clock->now());
+        $this->events->record($device, EventType::ConfigChange, 'Zmieniono nazwy dysków');
+        $this->entityManager->flush();
+    }
+
     public function mute(Device $device, \DateTimeImmutable $until): void
     {
         $device->setMutedUntil($until);

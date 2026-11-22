@@ -7,6 +7,7 @@ namespace App\Controller\Admin;
 use App\Admin\Form\DeviceType;
 use App\Alerting\RuleMatcher;
 use App\Device\DeviceManager;
+use App\Device\DiskInventory;
 use App\Entity\Device;
 use App\Enum\RuleSource;
 use App\Metrics\ChartQuery;
@@ -97,8 +98,14 @@ final class DeviceController extends AbstractController
         $deviceStates = $states->findBy(['device' => $device]);
         usort($deviceStates, static fn ($a, $b): int => [$b->getSeverity()->rank(), $a->getTitle()] <=> [$a->getSeverity()->rank(), $b->getTitle()]);
 
+        $chartLabels = [];
+        foreach (KeyMetrics::fromSnapshot($device->getLastSnapshot(), $device->getDiskLabels()) as $m) {
+            if ('uptime_s' !== $m['key']) {
+                $chartLabels[$m['key']] = $m['label'];
+            }
+        }
         $chartKeys = array_values(array_unique(array_merge(
-            array_map(static fn (array $m): string => $m['key'], array_filter(KeyMetrics::fromSnapshot($device->getLastSnapshot()), static fn (array $m): bool => 'uptime_s' !== $m['key'])),
+            array_keys($chartLabels),
             array_values(array_filter($metricKeys, static fn (string $k): bool => str_starts_with($k, 'mem.available_pct'))),
         )));
 
@@ -113,6 +120,9 @@ final class DeviceController extends AbstractController
             'metrics' => \is_array($metrics) ? $metrics : [],
             'metric_keys' => $metricKeys,
             'chart_keys' => $chartKeys,
+            'chart_labels' => $chartLabels,
+            'disks' => DiskInventory::rows($device),
+            'disk_label_max' => DiskInventory::MAX_LABEL_LENGTH,
             'range' => $range,
             'ranges' => ChartRange::cases(),
             'new_token' => $this->consumeNewToken($request),
@@ -192,6 +202,42 @@ final class DeviceController extends AbstractController
         $this->addFlash('success', \sprintf('Tryb serwisowy włączony na %s. Zdarzenia są zapisywane, powiadomienia wstrzymane.', self::MUTE_DURATIONS[$minutes]));
 
         return $this->redirectToRoute('app_device_show', ['id' => $device->getId()]);
+    }
+
+    /**
+     * Nazwy dysków i dysk pokazywany na karcie dashboardu. Przyjmowane są tylko dyski z listy urządzenia
+     * (raportowane przez agenta albo nazwane wcześniej); pusta nazwa usuwa nazwę.
+     */
+    #[Route('/{id}/disks', name: 'app_device_disks', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function disks(Device $device, Request $request): Response
+    {
+        $this->assertCsrf('device-disks'.$device->getId(), $request);
+
+        // Pary disk[i][id] / disk[i][label] (identyfikatory to ścieżki – nie nadają się na klucze nazw pól).
+        $submitted = [];
+        foreach ($request->request->all('disk') as $pair) {
+            if (\is_array($pair) && \is_string($pair['id'] ?? null) && \is_string($pair['label'] ?? null)) {
+                $submitted[$pair['id']] = $pair['label'];
+            }
+        }
+        $labels = [];
+        foreach (DiskInventory::rows($device) as $row) {
+            // Dysk spoza formularza (np. pojawił się po otwarciu strony) zachowuje dotychczasową nazwę.
+            $label = DiskInventory::normalizeLabel($submitted[$row->id] ?? $row->label ?? '');
+            if ('' !== $label) {
+                $labels[$row->id] = $label;
+            }
+        }
+
+        $dashboardDisk = $request->request->getString('dashboard_disk');
+        if (!\in_array($dashboardDisk, DiskInventory::mounts($device), true)) {
+            $dashboardDisk = null;
+        }
+
+        $this->manager->updateDisks($device, $labels, $dashboardDisk);
+        $this->addFlash('success', 'Zapisano ustawienia dysków. Tytuły alarmów zmienią się przy następnym heartbeacie.');
+
+        return $this->redirectToRoute('app_device_show', ['id' => $device->getId(), '_fragment' => 'disks']);
     }
 
     #[Route('/{id}/unmute', name: 'app_device_unmute', requirements: ['id' => '\d+'], methods: ['POST'])]

@@ -80,8 +80,21 @@ class Device
     #[ORM\Column(length: 32, nullable: true)]
     private ?string $lastAgentVersion = null;
 
+    /** Publiczny adres, z którego przyszedł ostatni heartbeat (adresy lokalne są w snapshocie: "ip"). */
     #[ORM\Column(length: 45, nullable: true)]
     private ?string $lastIp = null;
+
+    /**
+     * Nazwy dysków nadane w panelu: identyfikator (punkt montowania, dysk SMART, macierz RAID) => nazwa.
+     *
+     * @var array<string, string>|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $diskLabels = null;
+
+    /** Punkt montowania pokazywany na karcie dashboardu; null = najbardziej zajęty dysk. */
+    #[ORM\Column(length: 151, nullable: true)]
+    private ?string $dashboardDisk = null;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -259,6 +272,81 @@ class Device
     public function setLastIp(?string $lastIp): void
     {
         $this->lastIp = $lastIp;
+    }
+
+    /**
+     * Adresy lokalne zgłoszone przez agenta (hostname -I), w kolejności z urządzenia.
+     *
+     * @return list<string>
+     */
+    public function getLocalIps(): array
+    {
+        $ip = $this->lastSnapshot['ip'] ?? null;
+        if (\is_string($ip)) {
+            $ip = preg_split('/[\s,]+/', $ip, -1, \PREG_SPLIT_NO_EMPTY);
+        }
+        if (!\is_array($ip)) {
+            return [];
+        }
+
+        return array_values(array_filter($ip, static fn (mixed $item): bool => \is_string($item) && '' !== $item));
+    }
+
+    /**
+     * Główny adres lokalny: pierwszy IPv4 (adresy IPv6 bywają długie i zmienne), inaczej pierwszy dowolny.
+     */
+    public function getPrimaryLocalIp(): ?string
+    {
+        $ips = $this->getLocalIps();
+        foreach ($ips as $ip) {
+            if (false !== filter_var($ip, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4)) {
+                return $ip;
+            }
+        }
+
+        return $ips[0] ?? null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getDiskLabels(): array
+    {
+        return $this->diskLabels ?? [];
+    }
+
+    /**
+     * @param array<string, string> $labels
+     */
+    public function setDiskLabels(array $labels): void
+    {
+        ksort($labels);
+        $this->diskLabels = [] === $labels ? null : $labels;
+    }
+
+    public function getDiskLabel(string $id): ?string
+    {
+        return $this->diskLabels[$id] ?? null;
+    }
+
+    /**
+     * Opis dysku do tytułów alarmów i etykiet: "Backup, /mnt/backup" albo sam identyfikator, gdy bez nazwy.
+     */
+    public function describeDisk(string $id): string
+    {
+        $label = $this->getDiskLabel($id);
+
+        return null === $label ? $id : $label.', '.$id;
+    }
+
+    public function getDashboardDisk(): ?string
+    {
+        return $this->dashboardDisk;
+    }
+
+    public function setDashboardDisk(?string $dashboardDisk): void
+    {
+        $this->dashboardDisk = $dashboardDisk;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

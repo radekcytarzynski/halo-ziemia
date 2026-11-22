@@ -81,7 +81,7 @@ final readonly class DashboardBuilder
 
         return new DeviceCard(
             $device,
-            $this->indicators($metrics, $states),
+            $this->indicators($device, $metrics, $states),
             $problems,
             $path,
             $label,
@@ -90,14 +90,14 @@ final readonly class DashboardBuilder
     }
 
     /**
-     * Kluczowe wskaźniki: najbardziej zajęty dysk, temperatura CPU, load, wiek backupu.
+     * Kluczowe wskaźniki: dysk (wybrany w panelu albo najbardziej zajęty), temperatura CPU, load, wiek backupu.
      *
      * @param array<array-key, mixed> $metrics
      * @param list<AlertState>        $states
      *
      * @return list<array{label: string, value: float, unit: string|null, severity: string|null}>
      */
-    private function indicators(array $metrics, array $states): array
+    private function indicators(Device $device, array $metrics, array $states): array
     {
         $severityByValueKey = [];
         foreach ($states as $state) {
@@ -109,19 +109,13 @@ final readonly class DashboardBuilder
         }
 
         $result = [];
-        $worstDisk = null;
-        foreach ($metrics as $key => $value) {
-            if (\is_string($key) && preg_match('/^disk\.(.+)\.used_pct$/', $key, $m) && (\is_float($value) || \is_int($value))) {
-                if (null === $worstDisk || $value > $worstDisk[1]) {
-                    $worstDisk = [$m[1], (float) $value, $key];
-                }
-            }
-        }
-        if (null !== $worstDisk) {
-            $result[] = ['label' => 'Dysk '.$worstDisk[0], 'value' => $worstDisk[1], 'unit' => '%', 'severity' => $severityByValueKey[$worstDisk[2]] ?? null];
+        $disk = $this->dashboardDisk($device, $metrics);
+        if (null !== $disk) {
+            [$mount, $value, $key] = $disk;
+            $result[] = ['label' => $device->getDiskLabel($mount) ?? 'Dysk '.$mount, 'value' => $value, 'unit' => '%', 'severity' => $severityByValueKey[$key] ?? null];
         }
 
-        foreach (['cpu.temp_c' => 'CPU', 'load.1' => 'Load', 'check.backup.age_s' => 'Backup'] as $key => $label) {
+        foreach (['cpu.temp_c' => 'CPU', 'load.1' => 'Load', 'check.backup.age_s' => 'Ostatni backup'] as $key => $label) {
             $value = $metrics[$key] ?? null;
             if (\is_float($value) || \is_int($value)) {
                 $result[] = ['label' => $label, 'value' => (float) $value, 'unit' => MetricUnit::guess($key), 'severity' => $severityByValueKey[$key] ?? null];
@@ -129,6 +123,36 @@ final readonly class DashboardBuilder
         }
 
         return $result;
+    }
+
+    /**
+     * Dysk karty: wybrany w panelu, jeśli agent go raportuje; inaczej najbardziej zajęty.
+     *
+     * @param array<array-key, mixed> $metrics
+     *
+     * @return array{string, float, string}|null punkt montowania, zajętość %, klucz metryki
+     */
+    private function dashboardDisk(Device $device, array $metrics): ?array
+    {
+        $chosen = $device->getDashboardDisk();
+        if (null !== $chosen) {
+            $key = 'disk.'.$chosen.'.used_pct';
+            $value = $metrics[$key] ?? null;
+            if (\is_float($value) || \is_int($value)) {
+                return [$chosen, (float) $value, $key];
+            }
+        }
+
+        $worst = null;
+        foreach ($metrics as $key => $value) {
+            if (\is_string($key) && preg_match('/^disk\.(.+)\.used_pct$/', $key, $m) && (\is_float($value) || \is_int($value))) {
+                if (null === $worst || $value > $worst[1]) {
+                    $worst = [$m[1], (float) $value, $key];
+                }
+            }
+        }
+
+        return $worst;
     }
 
     /**

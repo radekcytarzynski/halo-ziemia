@@ -312,6 +312,7 @@ textarea { resize: vertical; }
 .device-card-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .device-card-head h2 { margin: 0; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .device-card-seen { margin: 0; color: var(--muted); font-size: .85rem; display: flex; gap: .5rem; align-items: center; }
+.device-card-ip { margin: -.2rem 0 0; color: var(--muted); font-size: .8rem; }
 .indicators { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: .4rem; margin: 0; }
 .indicator { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .35rem .55rem; }
 .indicator dt { font-size: .72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -377,6 +378,14 @@ textarea { resize: vertical; }
 .table tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 50%, transparent); }
 .table-compact th, .table-compact td { padding: .45rem .7rem; }
 .table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.table .center { text-align: center; }
+.disk-table input[type="text"] { min-width: 10rem; }
+@media (max-width: 600px) {
+    .disk-table th:nth-child(2), .disk-table td:nth-child(2) { display: none; }
+    .disk-table input[type="text"] { min-width: 7rem; }
+}
+.disk-table input[type="radio"] { width: 1rem; height: 1rem; accent-color: var(--accent); }
+.ip-list { display: flex; flex-wrap: wrap; gap: .15rem .75rem; }
 .table .actions { text-align: right; white-space: nowrap; }
 .table .actions > * + * { margin-left: .35rem; }
 .is-disabled td { opacity: .55; }

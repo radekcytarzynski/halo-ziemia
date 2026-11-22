@@ -22,10 +22,11 @@ final class KeyMetrics
 
     /**
      * @param array<string, mixed>|null $snapshot
+     * @param array<string, string>     $diskLabels nazwy dysków z panelu (identyfikator => nazwa)
      *
      * @return list<array{key: string, label: string, value: float, unit: string|null}>
      */
-    public static function fromSnapshot(?array $snapshot): array
+    public static function fromSnapshot(?array $snapshot, array $diskLabels = []): array
     {
         $metrics = $snapshot['metrics'] ?? null;
         if (!\is_array($metrics)) {
@@ -44,7 +45,7 @@ final class KeyMetrics
                 }
                 $result[] = [
                     'key' => $key,
-                    'label' => \sprintf($label, $captured),
+                    'label' => \sprintf($label, isset($diskLabels[$captured]) && !str_starts_with($pattern, 'check.') ? $diskLabels[$captured].', '.$captured : $captured),
                     'value' => (float) $value,
                     'unit' => MetricUnit::guess($key),
                 ];

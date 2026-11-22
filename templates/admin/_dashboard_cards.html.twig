@@ -36,12 +36,17 @@
                     {% if d.lastSeenAt %}Ostatni kontakt: <span title="{{ d.lastSeenAt|date('Y-m-d H:i:s') }}">{{ d.lastSeenAt|hz_ago }}</span>{% else %}Czeka na pierwszy heartbeat{% endif %}
                     {% if card.muted %}<span class="tag tag-muted" title="do {{ d.mutedUntil|date('Y-m-d H:i') }}">serwis</span>{% endif %}
                 </p>
+                {% if d.primaryLocalIp or d.lastIp %}
+                    <p class="device-card-ip mono" title="{{ d.localIps|join(', ') }}{% if d.lastIp %} · publiczny {{ d.lastIp }}{% endif %}">
+                        {{ d.primaryLocalIp ?? d.lastIp }}{% if d.localIps|length > 1 %} <span class="muted">+{{ d.localIps|length - 1 }}</span>{% endif %}
+                    </p>
+                {% endif %}
 
                 {% if card.indicators is not empty %}
                     <dl class="indicators">
                         {% for i in card.indicators %}
                             <div class="indicator{% if i.severity %} indicator-{{ i.severity }}{% endif %}">
-                                <dt>{{ i.label }}</dt>
+                                <dt title="{{ i.label }}">{{ i.label }}</dt>
                                 <dd>{{ i.value|hz_metric(i.unit) }}</dd>
                             </div>
                         {% endfor %}

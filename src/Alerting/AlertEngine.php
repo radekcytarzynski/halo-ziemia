@@ -265,7 +265,8 @@ final readonly class AlertEngine
     private function ruleState(Device $device, AlertRule $rule, string $key, string $captured, array &$states, \DateTimeImmutable $now): AlertState
     {
         $subject = $rule->subjectKey(RuleMatcher::isWildcard($rule->getTarget()) ? $key : null);
-        $title = $rule->titleFor($captured);
+        // Nazwa dysku z panelu (tylko metryki – fragment reguły checka to nazwa checka, nie dysk).
+        $title = $rule->titleFor(RuleSource::Metric === $rule->getSource() && '' !== $captured ? $device->describeDisk($captured) : $captured);
 
         $state = $states[$subject] ??= $this->createState($device, $subject, $title, $rule, $now);
         if ($state->getTitle() !== $title) {

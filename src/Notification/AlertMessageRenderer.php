@@ -76,7 +76,7 @@ final readonly class AlertMessageRenderer
             'recoveries' => $recoveries,
             'reminder' => $reminder,
             'now' => $now,
-            'key_metrics' => KeyMetrics::fromSnapshot($device->getLastSnapshot()),
+            'key_metrics' => KeyMetrics::fromSnapshot($device->getLastSnapshot(), $device->getDiskLabels()),
             'device_url' => $this->urlGenerator->generate('app_device_show', ['id' => $device->getId()], UrlGeneratorInterface::ABSOLUTE_URL),
         ];
 

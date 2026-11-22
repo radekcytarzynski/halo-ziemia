@@ -25,7 +25,7 @@
     {% if device.description %}<p class="lead">{{ device.description }}</p>{% endif %}
 
     <nav class="subnav" aria-label="Sekcje">
-        <a href="#overview">Przegląd</a><a href="#charts">Wykresy</a><a href="#rules">Reguły</a><a href="#tokens">Tokeny i agent</a><a href="#timeline">Oś czasu</a>
+        <a href="#overview">Przegląd</a>{% if disks is not empty %}<a href="#disks">Dyski</a>{% endif %}<a href="#charts">Wykresy</a><a href="#rules">Reguły</a><a href="#tokens">Tokeny i agent</a><a href="#timeline">Oś czasu</a>
     </nav>
 
     {# ---------- Przegląd ---------- #}
@@ -38,8 +38,10 @@
                 <dt>Heartbeat</dt>
                 <dd>co {{ device.expectedIntervalSeconds|hz_duration }}, alarm po {{ (device.expectedIntervalSeconds * missed_threshold + device.graceSeconds)|hz_duration }} ciszy</dd>
                 <dt>Agent</dt>
-                <dd class="mono">{{ device.lastAgentVersion ?? '–' }}{% if device.lastIp %} · {{ device.lastIp }}{% endif %}</dd>
+                <dd class="mono">{{ device.lastAgentVersion ?? '–' }}</dd>
                 {% if device.lastSnapshot.hostname is defined and device.lastSnapshot.hostname %}<dt>Hostname</dt><dd class="mono">{{ device.lastSnapshot.hostname }}</dd>{% endif %}
+                {% if device.localIps is not empty %}<dt>Adresy IP</dt><dd class="mono ip-list">{% for ip in device.localIps %}<span>{{ ip }}</span>{% endfor %}</dd>{% endif %}
+                {% if device.lastIp %}<dt>IP publiczne</dt><dd class="mono" title="Adres, z którego przyszedł ostatni heartbeat">{{ device.lastIp }}</dd>{% endif %}
             </dl>
 
             <h3>Stany alarmowe</h3>
@@ -95,6 +97,48 @@
         </div>
     </section>
 
+    {# ---------- Dyski ---------- #}
+    {% if disks is not empty %}
+        <section id="disks" class="section">
+            <div class="section-head"><h2>Dyski</h2></div>
+            <form method="post" action="{{ path('app_device_disks', {id: device.id}) }}" class="card">
+                <input type="hidden" name="_token" value="{{ csrf_token('device-disks' ~ device.id) }}">
+                <p class="muted small">Nazwy pojawiają się na dashboardzie, na wykresach, w tytułach alarmów i w mailach. Puste pole = bez nazwy.
+                    Dyski SMART (<span class="mono">sda</span>, <span class="mono">nvme0</span>…) są rozpoznawane po nazwie z systemu, która może się zmienić po dołożeniu dysku – punkty montowania są stałe.</p>
+                <div class="table-wrap">
+                    <table class="table table-compact disk-table">
+                        <thead><tr><th>Dysk</th><th>Rodzaj</th><th class="num">Stan</th><th>Nazwa</th><th class="center" title="Dysk pokazywany na karcie dashboardu">Na dashboardzie</th></tr></thead>
+                        <tbody>
+                        {% set kinds = {mount: 'system plików', smart: 'dysk (SMART)', raid: 'macierz RAID', gone: 'nieraportowany'} %}
+                        {% for disk in disks %}
+                            <tr{% if not disk.reported %} class="muted"{% endif %}>
+                                <td class="mono">{{ disk.id }}{% if disk.detail %} <span class="muted small">{{ disk.detail }}</span>{% endif %}</td>
+                                <td class="small">{{ kinds[disk.kind] }}</td>
+                                <td class="num">{% if disk.value is not null %}{{ disk.value|hz_metric(disk.kind == 'mount' ? '%' : '°C') }}{% else %}–{% endif %}</td>
+                                <td>
+                                    <input type="hidden" name="disk[{{ loop.index0 }}][id]" value="{{ disk.id }}">
+                                    <label class="visually-hidden" for="disk-label-{{ loop.index0 }}">Nazwa dysku {{ disk.id }}</label>
+                                    <input type="text" id="disk-label-{{ loop.index0 }}" name="disk[{{ loop.index0 }}][label]" value="{{ disk.label }}" maxlength="{{ disk_label_max }}" placeholder="{{ disk.kind == 'gone' ? 'wyczyść, aby usunąć' : 'np. Backup' }}">
+                                </td>
+                                <td class="center">
+                                    {% if disk.kind == 'mount' %}
+                                        <input type="radio" name="dashboard_disk" value="{{ disk.id }}" aria-label="Pokaż {{ disk.id }} na dashboardzie"{% if device.dashboardDisk == disk.id %} checked{% endif %}>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        <tr>
+                            <td colspan="4" class="muted small">Na dashboardzie: najbardziej zajęty dysk (domyślnie)</td>
+                            <td class="center"><input type="radio" name="dashboard_disk" value="" aria-label="Najbardziej zajęty dysk na dashboardzie"{% if device.dashboardDisk is null or device.dashboardDisk not in disks|filter(d => d.kind == 'mount')|map(d => d.id) %} checked{% endif %}></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="form-actions"><button type="submit" class="btn btn-primary btn-sm">Zapisz</button></div>
+            </form>
+        </section>
+    {% endif %}
+
     {# ---------- Wykresy ---------- #}
     <section id="charts" class="section">
         <div class="section-head">
@@ -111,7 +155,7 @@
             <div class="charts" data-tz="{{ app_timezone }}">
                 {% for key in chart_keys %}
                     <figure class="card chart-card">
-                        <figcaption class="mono small">{{ key }}</figcaption>
+                        <figcaption class="small">{% if chart_labels[key] is defined %}{{ chart_labels[key] }} <span class="mono muted">{{ key }}</span>{% else %}<span class="mono">{{ key }}</span>{% endif %}</figcaption>
                         <div class="chart" data-chart-url="{{ path('app_device_chart', {id: device.id, metric: key, range: range.value}) }}"></div>
                     </figure>
                 {% endfor %}
