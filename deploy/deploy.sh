@@ -180,7 +180,8 @@ step "Migracje bazy"
 if console "$NEW" doctrine:migrations:up-to-date; then
     printf 'Brak nowych migracji – kopia bazy niepotrzebna.\n'
 else
-    if console "$NEW" doctrine:migrations:status --no-ansi | grep -qE 'Executed[^0-9]*0\b|Current[^A-Za-z]*0\b'; then
+    # Wiersz "| Executed | 0 |" (nie "Executed Unavailable") = żadna migracja jeszcze nie wykonana.
+    if console "$NEW" doctrine:migrations:status --no-ansi | grep -qE '\|[[:space:]]+Executed[[:space:]]+\|[[:space:]]+0[[:space:]]+\|'; then
         printf 'Pierwsze wdrożenie – pusta baza, kopia niepotrzebna.\n'
     else
         step "Kopia bazy przed migracjami"
