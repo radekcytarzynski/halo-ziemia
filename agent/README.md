@@ -20,7 +20,17 @@ Instalator:
 - instaluje `halo-ziemia-agent.service` i `.timer`, wysyła testowy heartbeat i włącza timer.
 
 Ponowne uruchomienie `install.sh` aktualizuje agenta, a konfiguracja i checki zostają. Zmiana tokenu lub adresu: `sudo ./install.sh --reconfigure`.
-Odinstalowanie: `sudo ./uninstall.sh`, z usunięciem konfiguracji: `--purge`.
+Odinstalowanie: `sudo /usr/local/lib/halo-ziemia/uninstall.sh`, z usunięciem konfiguracji: `--purge`.
+
+Paczkę rozpakuj gdziekolwiek (np. w katalogu domowym albo `/tmp`) – instalator kopiuje wszystko do ścieżek systemowych, więc po instalacji katalog `halo-ziemia-agent/` można usunąć. Do aktualizacji pobierz paczkę z panelu ponownie.
+
+| Ścieżka | Zawartość |
+|---|---|
+| `/usr/local/bin/halo-ziemia-agent` | agent |
+| `/usr/local/lib/halo-ziemia/` | biblioteka zbierania metryk, `uninstall.sh` |
+| `/etc/halo-ziemia/` | `agent.conf` z tokenem (`600`, tylko root), `checks.d/` |
+| `/var/lib/halo-ziemia/` | stan (cache SMART) |
+| `/etc/systemd/system/halo-ziemia-agent.{service,timer}` | uruchamianie co minutę |
 
 ## Obsługa
 
