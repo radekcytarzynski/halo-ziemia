@@ -1,3 +1,7 @@
+# Katalog aplikacji ma w .htaccess "Require all denied" (na hostingu leży w katalogu WWW);
+# publiczny jest tylko ten katalog.
+Require all granted
+
 # Use the front controller as index file. It serves as a fallback solution when
 # every other rewrite/redirect fails (e.g. in an aliased environment without
 # mod_rewrite). Additionally, this reduces the matching process for the

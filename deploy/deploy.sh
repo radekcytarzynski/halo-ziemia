@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 # Wdrożenie paczki halo-ziemia.tar.gz zbudowanej przez deploy.ps1. Uruchamiane na serwerze:
 #   PHP=/usr/local/bin/php85 bash ~/domains/<domena>/deploy.sh
-# Leży w katalogu domeny, obok paczki. Układ katalogu domeny:
-#   app/              bieżąca wersja (public_html -> app/public; cron: app/bin/console)
-#   app_prev/         poprzednia wersja (rollback: mv app app_bad && mv app_prev app)
-#   shared/.env.local konfiguracja (szablon: deploy/env.local.example w repo)
-#   shared/log/       logi Symfony (app/var/log -> ../../shared/log, przetrwają wdrożenia)
-#   shared/backup/    kopie bazy sprzed migracji (ostatnie 5; usuwanie: bash deploy.sh --clean-backups)
+# Leży w katalogu domeny, obok paczki. Układ katalogu domeny (~/domains/<domena>/):
+#   deploy.sh, halo-ziemia.tar.gz   ten skrypt i paczka (paczka usuwana po wdrożeniu)
+#   shared/.env.local    konfiguracja (szablon: deploy/env.local.example w repo); poza katalogiem WWW
+#   shared/backup/       kopie bazy sprzed migracji (ostatnie 5; usuwanie: bash deploy.sh --clean-backups)
+#   public_html/         katalog WWW. Przy włączonej separacji domen (open_basedir) PHP widzi tylko jego,
+#                        dlatego cała aplikacja leży w środku, a z sieci dostępne jest tylko app/public/:
+#     .htaccess          generowany przez ten skrypt: każdy adres -> app/public/
+#     app/               bieżąca wersja (cron: public_html/app/bin/console); app/.htaccess: Require all denied
+#     app_prev/          poprzednia wersja (rollback: mv app app_bad && mv app_prev app)
+#     log/               logi Symfony (app/var/log -> ../../log, przetrwają wdrożenia)
 set -euo pipefail
 
 PHP=${PHP:-/usr/local/bin/php85}   # samo `php` w CLI na hostingu to zwykle starsza wersja
@@ -14,7 +18,13 @@ PHP_MIN=8.5.0
 cd "$(dirname "$(readlink -f "$0")")"
 
 PACKAGE=halo-ziemia.tar.gz
-NEW=app_new
+WEB=public_html
+APP=$WEB/app
+PREV=$WEB/app_prev
+BAD=$WEB/app_bad
+NEW=$WEB/app_new
+LOGS=$WEB/log
+HTACCESS_MARK='# halo-ziemia: plik zarządzany przez deploy.sh'
 ENV_LOCAL=shared/.env.local
 BACKUPS=shared/backup
 KEEP_BACKUPS=5
@@ -132,19 +142,49 @@ dump_db() {
 step "Kontrola serwera"
 check_server tar gzip mysqldump curl
 [ -f "$PACKAGE" ] || fail "brak $PACKAGE w $(pwd)"
+[ ! -L "$WEB" ] || fail "$WEB to symlink (stary układ). Usuń go i utwórz zwykły katalog: rm $WEB && mkdir $WEB"
+[ -d "$WEB" ] || fail "brak katalogu $WEB w $(pwd) (tworzy go panel hostingu razem z domeną)"
 perms=$(stat -c %a "$ENV_LOCAL")
 [ "$perms" = 600 ] || warn "$ENV_LOCAL ma prawa $perms (zalecane 600: chmod 600 $ENV_LOCAL)"
 
 # Powrót do app_prev/ po nieudanym przełączeniu; nieudana wersja zostaje w app_bad/ do analizy.
 rollback() {
-    if [ -d app_prev ]; then
-        printf '%s – przywracam poprzednią wersję (nieudana w app_bad/)\n' "$1" >&2
-        rm -rf app_bad
-        mv app app_bad
-        mv app_prev app
+    if [ -d "$PREV" ]; then
+        printf '%s – przywracam poprzednią wersję (nieudana w %s/)\n' "$1" "$BAD" >&2
+        rm -rf "$BAD"
+        mv "$APP" "$BAD"
+        mv "$PREV" "$APP"
         fail "wdrożenie wycofane. Migracje bazy NIE zostały cofnięte (kopia w $BACKUPS/, jeśli były nowe)"
     fi
-    fail "$1 (brak app_prev/ – nie ma do czego wrócić)"
+    fail "$1 (brak $PREV/ – nie ma do czego wrócić)"
+}
+
+# public_html/.htaccess: cały ruch do app/public/. Reszta katalogu WWW (kod, .env.local, vendor, logi)
+# nie ma adresu. Druga warstwa: app*/.htaccess i log/.htaccess z Require all denied.
+write_web_htaccess() {
+    local file=$WEB/.htaccess backup
+    if [ -f "$file" ] && ! grep -qF "$HTACCESS_MARK" "$file"; then
+        backup="public_html.htaccess.orig-$(date +%Y%m%d%H%M%S)"
+        printf 'Obcy %s – przenoszę do %s\n' "$file" "$backup"
+        mv "$file" "$backup"
+    fi
+    cat > "$file.tmp" << EOF
+$HTACCESS_MARK (nadpisywany przy każdym wdrożeniu).
+# Cała aplikacja leży w katalogu WWW (separacja domen), ale z sieci dostępne jest tylko app/public/.
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Odnawianie certyfikatu Let's Encrypt
+    RewriteRule ^\.well-known/acme-challenge/ - [L]
+    RewriteRule ^app/public/ - [L]
+    RewriteRule ^(.*)\$ app/public/\$1 [L]
+</IfModule>
+EOF
+    mv "$file.tmp" "$file"
+    mkdir -p "$LOGS"
+    printf 'Require all denied\n' > "$LOGS/.htaccess"
 }
 
 # Treść odpowiedzi dla adresu, gdy HTTP 200 (kilka prób – serwer może chwilę ładować nową wersję).
@@ -170,8 +210,9 @@ tar -xzf "$PACKAGE" -C "$NEW"
 step "Konfiguracja z shared/"
 cp "$ENV_LOCAL" "$NEW/.env.local"
 chmod 600 "$NEW/.env.local"
-mkdir -p shared/log "$NEW/var"
-ln -sfn ../../shared/log "$NEW/var/log"
+[ -f "$NEW/.htaccess" ] || fail "w paczce brak .htaccess blokującego katalog aplikacji – zbuduj ją ponownie"
+mkdir -p "$LOGS" "$NEW/var"
+ln -sfn ../../log "$NEW/var/log"
 
 step "Kontrola konfiguracji (cache:warmup w $NEW/)"
 console "$NEW" cache:warmup
@@ -195,19 +236,12 @@ fi
 rm -rf "$NEW/var/cache"
 
 step "Przełączenie wersji"
-rm -rf app_prev
-if [ -d app ]; then mv app app_prev; fi
-mv "$NEW" app
+rm -rf "$PREV"
+if [ -d "$APP" ]; then mv "$APP" "$PREV"; fi
+mv "$NEW" "$APP"
+write_web_htaccess
 
-console app cache:warmup || rollback "cache:warmup po przełączeniu nie przeszedł"
-
-# public_html -> app/public (przy pierwszym wdrożeniu public_html to zwykły katalog z panelu hostingu)
-if [ -d public_html ] && [ ! -L public_html ]; then
-    backup="public_html.orig-$(date +%Y%m%d%H%M%S)"
-    printf 'public_html to katalog – przenoszę do %s\n' "$backup"
-    mv public_html "$backup"
-fi
-ln -sfn app/public public_html
+console "$APP" cache:warmup || rollback "cache:warmup po przełączeniu nie przeszedł"
 
 step "Healthcheck ($BASE_URI)"
 health=$(http_get "$BASE_URI/health") || rollback "$BASE_URI/health: $health"
@@ -217,11 +251,11 @@ case $health in
     *) warn "aplikacja nie widzi HTTPS (\"secure\":false) – API odrzuci agentów. Sprawdź SSL domeny albo TRUSTED_PROXIES w $ENV_LOCAL" ;;
 esac
 # Baza tylko raportowana: migracje już przeszły, powrót do starego kodu niczego by tu nie naprawił.
-if db=$(http_get "$BASE_URI/health/db"); then printf 'db: %s\n' "$db"; else warn "health/db: $db – sprawdź bazę i shared/log/prod.log"; fi
+if db=$(http_get "$BASE_URI/health/db"); then printf 'db: %s\n' "$db"; else warn "health/db: $db – sprawdź bazę i $LOGS/prod.log"; fi
 
 step "Stan aplikacji"
-console app app:status --no-ansi || warn "app:status nie powiódł się"
+console "$APP" app:status --no-ansi || warn "app:status nie powiódł się"
 
-rm -rf app_bad
+rm -rf "$BAD"
 rm -f "$PACKAGE"
 step "Gotowe ($(date '+%Y-%m-%d %H:%M:%S'))"

@@ -26,9 +26,9 @@ W przykładach poleceń `<użytkownik>@<host>`, `<port>` i `<domena>` to dane ce
 
 0. ochrona katalogu: musi istnieć `shared/.env.local`, a host z jego `APP_BASE_URL` musi być równy nazwie katalogu domeny. Do tego blokada `flock`, więc dwa wdrożenia naraz się nie wykonają
 1. kontrola serwera: PHP CLI ≥ 8.5 (`$PHP`), `tar`, `gzip`, `mysqldump`, `curl`, obecność paczki, prawa `600` dla `shared/.env.local`
-2. rozpakowanie do `app_new/`, skopiowanie `shared/.env.local`, podpięcie `var/log` → `shared/log`
+2. rozpakowanie do `public_html/app_new/`, skopiowanie `shared/.env.local`, podpięcie `var/log` → `public_html/log`
 3. `cache:warmup` (kontrola konfiguracji). Jeśli są nowe migracje: [kopia bazy](#kopie-bazy-przed-migracjami) (poza pierwszym wdrożeniem na pustą bazę), potem `doctrine:migrations:migrate`
-4. `app/` → `app_prev/`, `app_new/` → `app/`, ponowny `cache:warmup`, symlink `public_html` → `app/public`
+4. `app/` → `app_prev/`, `app_new/` → `app/` (w `public_html/`), zapis `public_html/.htaccess`, ponowny `cache:warmup`
 5. healthcheck: `GET <APP_BASE_URL>/health` musi zwrócić 200; ostrzega, gdy aplikacja nie widzi HTTPS (`"secure":false` – wtedy API odrzuci agentów). `/health/db` jest tylko raportowany
 6. `app:status`: ostatni `app:tick`, urządzenia, kolejka powiadomień
 7. jeśli krok 4 lub 5 się nie uda, następuje automatyczny powrót do `app_prev/`, a nieudana wersja zostaje w `app_bad/`. **Migracje nie są cofane** (zob. [Rollback](#rollback))
@@ -37,16 +37,27 @@ Układ katalogu domeny po wdrożeniu:
 
 ```
 ~/domains/<domena>/
-├── app/               bieżąca wersja (cron wskazuje app/bin/console)
-├── app_prev/          poprzednia wersja
-├── app_bad/           tylko po automatycznym wycofaniu
-├── shared/
-│   ├── .env.local     konfiguracja (sekrety), chmod 600
-│   ├── log/           prod.log (rotacja dzienna, 14 plików)
-│   └── backup/        kopie bazy sprzed migracji (5 ostatnich)
 ├── deploy.sh
-└── public_html -> app/public
+├── shared/                 poza katalogiem WWW (czyta go tylko deploy.sh)
+│   ├── .env.local          konfiguracja (sekrety), chmod 600
+│   └── backup/             kopie bazy sprzed migracji (5 ostatnich)
+└── public_html/            katalog WWW
+    ├── .htaccess           generowany przez deploy.sh: każdy adres → app/public/
+    ├── app/                bieżąca wersja (cron wskazuje public_html/app/bin/console)
+    ├── app_prev/           poprzednia wersja
+    ├── app_bad/            tylko po automatycznym wycofaniu
+    └── log/                prod.log (rotacja dzienna, 14 plików)
 ```
+
+### Dlaczego aplikacja leży w public_html
+
+Na cyber_Folks *separacja domen* ustawia `open_basedir` na katalog WWW domeny, więc PHP strony nie może otworzyć niczego poza `public_html/`. Separację zostawiamy włączoną: jeśli w aplikacji znajdzie się dziura pozwalająca czytać pliki, atakujący nie sięgnie do innych domen na koncie. Dlatego kod i logi leżą wewnątrz `public_html/`, a z sieci dostępne jest tylko `app/public/`:
+
+1. `public_html/.htaccess` przepisuje **każdy** adres na `app/public/…`. Adres `/app/.env.local` trafia więc do `app/public/app/.env.local`, którego nie ma, i kończy się stroną 404 z Symfony. Bez `mod_rewrite` ten sam plik blokuje wszystko.
+2. Druga warstwa, gdyby ktoś usunął lub zepsuł plik z punktu 1: `app/.htaccess` (z repo) ma `Require all denied`, a otwiera go tylko `app/public/.htaccess` (`Require all granted`). To samo działa dla `app_prev/` i `app_bad/`. `log/.htaccess` ma `Require all denied`.
+3. Sekrety i kopie bazy (`shared/`) w ogóle nie leżą w katalogu WWW. Do `app/` trafia tylko kopia `.env.local`, chroniona jak wyżej.
+
+Wymaga to `AllowOverride` z `FileInfo` i `AuthConfig` (na cyber_Folks domyślnie jest). Jeśli nie ma, healthcheck dostanie 500 i wdrożenie się wycofa.
 
 Wymagania lokalne: PowerShell (`pwsh` w WSL albo Windows PowerShell), działające `docker compose up -d`, klient OpenSSH (`ssh`, `scp`) i klucz SSH dodany do konta na serwerze.
 
@@ -61,7 +72,7 @@ Copy-Item deploy/targets.example.psd1 deploy/targets.local.psd1   # i uzupełnij
 ### 1. Domena, PHP, baza
 
 - **Domena lub subdomena** w DirectAdminie, z certyfikatem SSL (Let's Encrypt). Agent wysyła dane tylko po HTTPS.
-- **cyber_Folks:** wyłącz dla domeny *separację domen* (albo poproś support o dopisanie `~/domains/<domena>` do `open_basedir`). Inaczej strona zwraca 500 bez wpisu w logu, bo PHP nie może czytać `app/` poza `public_html`.
+- **cyber_Folks:** *separację domen* zostaw włączoną (zob. [wyżej](#dlaczego-aplikacja-leży-w-public_html)). W ustawieniach katalogu HTTPS wybierz *symlink z private_html do public_html* (te same dane dla http i https).
 - **PHP 8.5** sprawdź przez SSH: `ls /usr/local/bin/php8*` i `/usr/local/bin/php85 -v`.
 - **Baza:** DirectAdmin → *MySQL Management* → *Create new database*. Zanotuj nazwę bazy, użytkownika i hasło (z prefiksem konta). Wersja serwera: `mysql -u <uzytkownik_db> -p -e 'SELECT VERSION();'`.
 - **Skrzynka do wysyłki** powiadomień (np. `monitor@<domena>`) – dane SMTP z panelu.
@@ -71,7 +82,7 @@ Copy-Item deploy/targets.example.psd1 deploy/targets.local.psd1   # i uzupełnij
 ```bash
 ssh -p <port> <użytkownik>@<host>
 cd ~/domains/<domena>
-mkdir -p shared/log
+mkdir -p shared
 openssl rand -hex 32          # → APP_SECRET (generuj na serwerze, nie kopiuj z dev)
 nano shared/.env.local        # na podstawie deploy/env.local.example
 chmod 600 shared/.env.local
@@ -96,13 +107,13 @@ Skrypt na serwerze nie aktualizuje się sam. Po każdej zmianie `deploy/deploy.s
 pwsh ./deploy.ps1               # WSL
 ```
 
-Za pierwszym razem `deploy.sh` przeniesie istniejący katalog `public_html/` do `public_html.orig-<data>` i założy symlink. Pustą bazę zmigruje bez robienia kopii.
+Za pierwszym razem `deploy.sh` przeniesie ewentualny obcy `public_html/.htaccess` do `public_html.htaccess.orig-<data>` (poza katalog WWW). Domyślne pliki z panelu (np. `index.html`) mogą zostać, bo żaden adres już do nich nie prowadzi, ale możesz je usunąć. Pustą bazę zmigruje bez robienia kopii.
 Samą paczkę bez wysyłki zbudujesz przez `-SkipUpload`.
 
 ### 5. Administrator
 
 ```bash
-cd ~/domains/<domena>/app
+cd ~/domains/<domena>/public_html/app
 /usr/local/bin/php85 bin/console app:user:create twoj@adres.pl
 ```
 
@@ -112,12 +123,12 @@ Hasło (minimum 12 znaków) wpisujesz interaktywnie.
 
 | Kiedy | Polecenie |
 |-------|-----------|
-| `* * * * *` | `/usr/local/bin/php85 /home/<użytkownik>/domains/<domena>/app/bin/console app:tick --no-interaction > /dev/null 2>&1` |
+| `* * * * *` | `/usr/local/bin/php85 /home/<użytkownik>/domains/<domena>/public_html/app/bin/console app:tick --no-interaction > /dev/null 2>&1` |
 | `5 * * * *` | `… app:rollup --no-interaction > /dev/null 2>&1` (od etapu 6) |
 | `30 3 * * *` | `… app:retention --no-interaction > /dev/null 2>&1` (od etapu 6) |
 
 Gotowe linie z poprawnymi ścieżkami są w panelu: **Ustawienia → Cron**. Ścieżka `app/` się nie zmienia, bo wdrożenie podmienia katalogi, więc cron nie wymaga poprawek po kolejnych wdrożeniach.
-Błędy crona trafiają do `shared/log/prod.log`. Dashboard pokazuje czerwony banner, gdy `app:tick` nie działa dłużej niż 3 minuty.
+Błędy crona trafiają do `public_html/log/prod.log`. Dashboard pokazuje czerwony banner, gdy `app:tick` nie działa dłużej niż 3 minuty.
 
 Opcjonalnie [healthchecks.io](https://healthchecks.io) (darmowe): utwórz check z okresem 1 min i grace 5 min, a jego URL wpisz jako `WATCHDOG_URL` w `shared/.env.local`. Dostaniesz alarm, gdy przestanie działać sam monitor.
 
@@ -126,7 +137,8 @@ Opcjonalnie [healthchecks.io](https://healthchecks.io) (darmowe): utwórz check 
 - `https://<domena>/health` → `{"status":"ok","secure":true}` (`secure:false` przy HTTPS oznacza, że trzeba ustawić `TRUSTED_PROXIES`)
 - `https://<domena>/health/db` → `{"status":"ok"}`
 - `https://<domena>/` → logowanie kontem z kroku 5
-- przez SSH: `/usr/local/bin/php85 app/bin/console app:status`
+- przez SSH: `/usr/local/bin/php85 public_html/app/bin/console app:status`
+- `https://<domena>/app/.env.local`, `https://<domena>/log/prod.log` → 404 (nic poza `app/public/` nie jest dostępne)
 - **Odbiorcy → dodaj siebie → „Wyślij testowy mail”**
 
 ### 8. Urządzenia
@@ -161,11 +173,11 @@ Regularne kopie całej bazy robi hosting. Dodatkowo możesz raz na dobę zrobić
 ## Rollback
 
 ```bash
-cd ~/domains/<domena>
+cd ~/domains/<domena>/public_html
 rm -rf app_bad && mv app app_bad && mv app_prev app
 ```
 
-`public_html` wskazuje na `app/public`, a cron na `app/bin/console`, więc zmiana działa od razu. Dostępna jest tylko jedna poprzednia wersja.
+`.htaccess` kieruje ruch do `app/public`, a cron na `app/bin/console`, więc zmiana działa od razu. Dostępna jest tylko jedna poprzednia wersja.
 
 **Migracje nie są cofane.** Jeśli nowa wersja zmieniła schemat w sposób niezgodny ze starszym kodem, przed rollbackiem (jeszcze w `app/`) wykonaj:
 
@@ -186,13 +198,13 @@ albo `sudo ./install.sh --reconfigure`. Stary token przestaje działać po upły
 
 ## Logi
 
-- **Aplikacja:** `~/domains/<domena>/shared/log/prod.log` (błędy żądań i crona; rotacja dzienna, 14 plików)
+- **Aplikacja:** `~/domains/<domena>/public_html/log/prod.log` (błędy żądań i crona; rotacja dzienna, 14 plików)
 - **Serwer WWW/PHP:** DirectAdmin → *Site Summary / Statistics / Logs* albo `~/domains/<domena>/logs/`. Trafiają tu błędy sprzed startu Symfony (zły handler PHP, `.htaccess`)
 - **Agent na urządzeniu:** `journalctl -u halo-ziemia-agent`
 
 | Objaw | Przyczyna |
 |---|---|
-| 500 na wszystkim, w `prod.log` pusto | cyber_Folks: włączona separacja domen (`open_basedir`), zły `AddHandler` (wersja PHP niedostępna dla WWW) albo błąd w `shared/.env.local` |
+| 500 na wszystkim, w `prod.log` pusto | zły `AddHandler` (wersja PHP niedostępna dla WWW), `.htaccess` niedozwolony przez `AllowOverride` (log serwera WWW) albo błąd w `shared/.env.local` |
 | `/health` daje `"secure":false` mimo HTTPS | aplikacja za proxy: ustaw `TRUSTED_PROXIES` w `shared/.env.local` |
 | agent: `HTTP 403 https_required` | jak wyżej, albo agent ma w `HZ_URL` adres `http://` |
 | agent: `HTTP 401` | token unieważniony, wygasły po rotacji albo wpisany z błędem |

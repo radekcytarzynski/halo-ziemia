@@ -1,0 +1,3 @@
+# Na hostingu katalog aplikacji leży w katalogu WWW (separacja domen / open_basedir).
+# Nic poza public/ nie może być dostępne z sieci; public/.htaccess ma "Require all granted".
+Require all denied
