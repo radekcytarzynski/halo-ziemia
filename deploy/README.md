@@ -1,7 +1,7 @@
 # Wdrożenie
 
 Panel i API Symfony na jednej domenie, hosting współdzielony z DirectAdminem (cyber_Folks), bez sudo i bez demonów. Całe tło to cron.
-Cel wybiera parametr `-Target`; dane serwera są w `deploy/targets.local.psd1` (poza repo).
+Jedno środowisko: produkcja. Dane serwera są w `deploy/targets.local.psd1` (poza repo).
 
 | | |
 |---|---|
@@ -10,13 +10,13 @@ Cel wybiera parametr `-Target`; dane serwera są w `deploy/targets.local.psd1` (
 | PHP CLI | `/usr/local/bin/php85` (samo `php` w CLI to zwykle starsza wersja – nie używać) |
 | PHP WWW | `AddHandler application/x-httpd-php85` – dopisywany do `public/.htaccess` w paczce |
 
-W przykładach poleceń `<użytkownik>@<host>`, `<port>` i `<domena>` to dane celu z `deploy/targets.local.psd1`.
+W przykładach poleceń `<użytkownik>@<host>`, `<port>` i `<domena>` to dane z `deploy/targets.local.psd1`.
 
 ## Jak to działa
 
 `deploy.ps1` (lokalnie, PowerShell, katalog główny repo):
 
-0. tylko `-Target prod` (domyślny): bieżąca gałąź to `main`, brak niezacommitowanych zmian, `HEAD` = `origin/main` (jeśli jest `origin`), wpisanie nazwy domeny jako potwierdzenie
+0. (pomijane przy `-SkipUpload`) bieżąca gałąź to `main`, brak niezacommitowanych zmian, `HEAD` = `origin/main` (jeśli jest `origin`), wpisanie nazwy domeny jako potwierdzenie
 1. czysta kopia projektu z gita (`git archive HEAD`) do `build/`, bez testów, narzędzi deweloperskich, `docker/`, `deploy/`, `.env.dev`/`.env.test`
 2. w kontenerze `php`: `composer install --no-dev --classmap-authoritative`, `asset-map:compile` (CSS/JS/uPlot do `public/assets/`)
 3. `AddHandler application/x-httpd-php<Php>` na początku `public/.htaccess` (tylko w paczce – lokalny Apache z mod_php by go nie zniósł)
@@ -64,7 +64,7 @@ Wymagania lokalne: PowerShell (`pwsh` w WSL albo Windows PowerShell), działają
 **Dane serwera** – jednorazowo:
 
 ```powershell
-Copy-Item deploy/targets.example.psd1 deploy/targets.local.psd1   # i uzupełnij: Remote, Port, Domain, Php
+Copy-Item deploy/targets.example.psd1 deploy/targets.local.psd1   # i uzupełnij: Remote, Port, Domain (Php opcjonalnie, domyślnie '85')
 ```
 
 ## Pierwsze wdrożenie

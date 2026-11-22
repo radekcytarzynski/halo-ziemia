@@ -13,7 +13,7 @@ function Get-DeployTarget([string]$name) {
     if (-not $t) { throw "W $TargetsFile brak celu '$name'." }
     $remote = [string]$t.Remote
     $domain = [string]$t.Domain
-    $php = [string]$t.Php
+    $php = if ($t.Php) { [string]$t.Php } else { '85' }
     if ($remote -notmatch '^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$') { throw "${TargetsFile}: '$name'.Remote musi mieć postać uzytkownik@host (jest: '$remote')." }
     if ($domain -notmatch '^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$') { throw "${TargetsFile}: '$name'.Domain musi być nazwą domeny (jest: '$domain')." }
     if (-not ($t.Port -is [int]) -or $t.Port -lt 1 -or $t.Port -gt 65535) { throw "${TargetsFile}: '$name'.Port musi być liczbą 1–65535." }

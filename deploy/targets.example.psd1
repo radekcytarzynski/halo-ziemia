@@ -4,7 +4,8 @@
 #   Port   – port SSH (liczba, bez cudzysłowów)
 #   Domain – domena aplikacji = nazwa katalogu na serwerze: ~/domains/<Domain>
 #            (musi być równa hostowi z APP_BASE_URL w shared/.env.local, inaczej deploy.sh odmówi działania)
-#   Php    – wersja PHP bez kropki: CLI /usr/local/bin/php<Php> i handler x-httpd-php<Php> w .htaccess
+#   Php    – opcjonalnie (domyślnie '85'): wersja PHP bez kropki – CLI /usr/local/bin/php<Php>
+#            i handler x-httpd-php<Php> w .htaccess
 @{
     prod = @{
         Remote = 'uzytkownik@sNNN.cyber-folks.pl'
@@ -12,6 +13,4 @@
         Domain = 'monitor.example.com'
         Php    = '85'
     }
-    # Opcjonalnie drugi serwer (np. testowy):
-    # staging = @{ Remote = '...'; Port = 222; Domain = '...'; Php = '85' }
 }

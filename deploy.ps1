@@ -1,7 +1,6 @@
 ﻿# Buduje paczkę halo-ziemia.tar.gz i wdraża ją na serwer.
 # Użycie (w katalogu głównym repo):
 #   .\deploy.ps1                       # produkcja: kontrola gita, build, wysyłka, deploy/deploy.sh na serwerze
-#   .\deploy.ps1 -Target staging       # inny cel z deploy/targets.local.psd1 (bez kontroli gałęzi)
 #   .\deploy.ps1 -SkipUpload           # tylko zbudowanie halo-ziemia.tar.gz (bez łączenia z serwerem)
 #   .\deploy.ps1 -CleanBackups         # usunięcie kopii bazy sprzed migracji (shared/backup/)
 # Z WSL/Linuksa: pwsh ./deploy.ps1 …
@@ -9,8 +8,6 @@
 # Szczegóły: deploy/README.md
 
 param(
-    [ValidateSet('prod', 'staging')]
-    [string]$Target = 'prod',
     [switch]$SkipUpload,
     [switch]$CleanBackups
 )
@@ -22,6 +19,7 @@ Set-Location $PSScriptRoot
 $Package = 'halo-ziemia.tar.gz'
 $Build = 'build'          # w katalogu projektu, więc kontener php widzi go jako /app/build
 $PhpVersion = '85'        # handler PHP w .htaccess dla -SkipUpload bez targets.local.psd1
+$Target = 'prod'          # jedyny cel (klucz w deploy/targets.local.psd1)
 
 if (-not $SkipUpload) {
     $cfg = Get-DeployTarget $Target
@@ -30,7 +28,7 @@ if (-not $SkipUpload) {
     $Domain = $cfg.Domain
     $RemoteDir = $cfg.RemoteDir
     $PhpVersion = $cfg.Php
-    Write-Host "Cel: $Target ($Remote, port $Port, ~/$RemoteDir, PHP $PhpVersion)" -ForegroundColor Cyan
+    Write-Host "Produkcja ($Remote, port $Port, ~/$RemoteDir, PHP $PhpVersion)" -ForegroundColor Cyan
 }
 $RemotePhp = "/usr/local/bin/php$PhpVersion"
 
@@ -41,7 +39,7 @@ if ($CleanBackups) {
     return
 }
 
-if ($Target -eq 'prod' -and -not $SkipUpload) {
+if (-not $SkipUpload) {
     Step "Kontrola przed wdrożeniem na produkcję"
     if (-not (Test-Path .git)) { throw "Produkcję wdraża się tylko z repozytorium gita." }
     $branch = Native { git rev-parse --abbrev-ref HEAD }; Check "git rev-parse"
