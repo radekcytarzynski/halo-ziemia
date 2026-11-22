@@ -28,7 +28,7 @@ docker compose exec --user www-data php bin/console app:user:create admin@exampl
 docker compose exec --user www-data php composer qa
 ```
 
-`composer qa` uruchamia PHP-CS-Fixer (dry-run), PHPStan (level max) oraz PHPUnit. Przed testami tworzy i migruje bazę `halo_test`.
+`composer qa` uruchamia PHP-CS-Fixer (dry-run), PHPStan (level max), PHPUnit oraz testy agenta (shellcheck i bats). Przed testami PHPUnit tworzy i migruje bazę `halo_test`.
 Poprawki stylu: `composer cs-fix`.
 
 ## Konfiguracja (zmienne środowiskowe)
@@ -109,11 +109,16 @@ Spłaszczanie do kluczy metryk:
 | `app:tick` | co minutę | DOWN, przypomnienia, wysyłka outboxa, ping `WATCHDOG_URL`, zapis czasu ticku |
 | `app:notify:test <email>` | – | Natychmiastowy testowy e-mail (sprawdzenie `MAILER_DSN`) |
 
+## Agent
+
+Agent w bashu (Debian / Raspberry Pi OS, systemd) jest w katalogu [`agent/`](agent/README.md). Panel serwuje go jako `/agent/halo-ziemia-agent.tar.gz`,
+a gotowy snippet instalacyjny z adresem jest na stronie urządzenia. Kontrakt pluginów checków opisuje [agent/README.md](agent/README.md#pluginy-checków--kontrakt).
+
 ## Struktura
 
 - `src/Entity`, `src/Enum`, `src/Repository`: model danych
 - `src/Controller/Admin`: panel (Twig)
 - `src/Command`: komendy konsolowe (`app:user:create`, później `app:tick`, `app:rollup`, `app:retention`)
 - `assets/`: CSS/JS przez AssetMapper (bez Node, bez CDN)
-- `agent/`: agent bash dla urządzeń (etap 5)
+- `agent/`: agent bash dla urządzeń (testy: `composer agent`, czyli shellcheck i bats)
 - `deploy/`: miejsce na skrypty wdrożeniowe (etap 6)

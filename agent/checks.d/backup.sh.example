@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#
+# Przykładowy check backupu dla halo-ziemia.
+# Aktywacja: skopiuj jako /etc/halo-ziemia/checks.d/backup.sh, dostosuj ścieżki, chmod 700.
+#
+# Zasada: skrypt backupu po SUKCESIE dotyka pliku-znacznika, np.:
+#     rsync ... && touch /var/lib/backup/last-success
+# a po błędzie może zapisać komunikat do pliku błędu:
+#     || echo "rsync: kod $?" > /var/lib/backup/last-error
+#
+# Ten check raportuje wiek ostatniego udanego backupu. O progach (np. > 26 h = WARN)
+# decyduje serwer – reguła „Wiek backupu” (metryka check.backup.age_s), edytowalna w panelu.
+
+set -u
+
+SUCCESS_MARKER=${SUCCESS_MARKER:-/var/lib/backup/last-success}
+ERROR_FILE=${ERROR_FILE:-/var/lib/backup/last-error}
+
+now=$(date +%s)
+
+if [[ ! -e $SUCCESS_MARKER ]]; then
+    jq -cn --arg m "Brak znacznika udanego backupu ($SUCCESS_MARKER)" '{status: "fail", message: $m}'
+    exit 0
+fi
+
+success=$(stat -c %Y "$SUCCESS_MARKER")
+age=$((now - success))
+
+# Błąd nowszy niż ostatni sukces → fail z komunikatem.
+if [[ -s $ERROR_FILE ]] && (($(stat -c %Y "$ERROR_FILE") > success)); then
+    jq -cn --arg m "$(head -c 400 "$ERROR_FILE")" --argjson age "$age" \
+        '{status: "fail", message: $m, last_success_age_s: $age}'
+    exit 0
+fi
+
+jq -cn --argjson age "$age" --arg when "$(date -d "@$success" '+%Y-%m-%d %H:%M')" \
+    '{status: "ok", message: ("Ostatni backup: " + $when), last_success_age_s: $age}'

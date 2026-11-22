@@ -1,0 +1,199 @@
+#!/usr/bin/env bash
+#
+# halo-ziemia agent – wysyła heartbeat z metrykami do serwera halo-ziemia.
+# Uruchamiany przez systemd timer co 60 s. Wymaga: bash, curl, jq.
+#
+# Użycie:
+#   halo-ziemia-agent            wyślij heartbeat (cicho; błędy na stderr → journald)
+#   halo-ziemia-agent --test     wyślij heartbeat i pokaż odpowiedź serwera
+#   halo-ziemia-agent --dry-run  pokaż payload bez wysyłania
+#   halo-ziemia-agent --version
+#
+# Kody wyjścia: 0 OK, 1 błąd konfiguracji, 2 błąd połączenia, 3 serwer odrzucił dane.
+#
+# Token jest czytany z pliku konfiguracyjnego i przekazywany do curl przez stdin (-K -),
+# więc nie pojawia się w argumentach procesu (ps) ani w logach.
+
+set -uo pipefail
+
+HZ_VERSION="1.0.0"
+HZ_CONFIG=${HZ_CONFIG:-/etc/halo-ziemia/agent.conf}
+HZ_TIMEOUT=${HZ_TIMEOUT:-15}
+HZ_ALLOW_HTTP=${HZ_ALLOW_HTTP:-0}
+HZ_URL=${HZ_URL:-}
+HZ_TOKEN=${HZ_TOKEN:-}
+HZ_RETRY_DELAYS=${HZ_RETRY_DELAYS:-"2 5"}
+
+hz_script_dir() {
+    local source=${BASH_SOURCE[0]}
+    while [[ -L $source ]]; do source=$(readlink "$source"); done
+    cd -P "$(dirname "$source")" > /dev/null 2>&1 && pwd
+}
+
+if [[ -n ${HZ_LIB_DIR:-} ]]; then
+    :
+elif [[ -r /usr/local/lib/halo-ziemia/collect.sh ]]; then
+    HZ_LIB_DIR=/usr/local/lib/halo-ziemia
+else
+    HZ_LIB_DIR="$(hz_script_dir)/lib"
+fi
+# shellcheck source=lib/collect.sh source-path=SCRIPTDIR
+. "$HZ_LIB_DIR/collect.sh"
+
+hz_log() { printf 'halo-ziemia: %s\n' "$*" >&2; }
+
+# Bezpieczne wczytanie konfiguracji: tylko KLUCZ="wartość" z listy dozwolonych, bez wykonywania kodu.
+hz_load_config() {
+    local file=$1 line key value perms
+    if [[ ! -r $file ]]; then
+        hz_log "brak pliku konfiguracyjnego $file (uruchom install.sh)"
+        return 1
+    fi
+    perms=$(stat -c %a "$file" 2> /dev/null || echo "")
+    if [[ -n $perms && $perms != 600 && $perms != 400 ]]; then
+        hz_log "ostrzeżenie: $file ma uprawnienia $perms (zalecane 600 – plik zawiera token)"
+    fi
+
+    while IFS= read -r line || [[ -n $line ]]; do
+        [[ $line =~ ^[[:space:]]*(#|$) ]] && continue
+        if [[ $line =~ ^[[:space:]]*(HZ_[A-Z_]+)=(.*)$ ]]; then
+            key=${BASH_REMATCH[1]}
+            value=${BASH_REMATCH[2]}
+            value=${value%"${value##*[![:space:]]}"}
+            if [[ $value =~ ^\"(.*)\"$ || $value =~ ^\'(.*)\'$ ]]; then value=${BASH_REMATCH[1]}; fi
+            case $key in
+                HZ_URL | HZ_TOKEN | HZ_MOUNTS | HZ_SMART_DEVICES | HZ_SMART_INTERVAL | HZ_CHECKS_DIR | HZ_TIMEOUT | HZ_CHECK_TIMEOUT | HZ_ALLOW_HTTP)
+                    printf -v "$key" '%s' "$value"
+                    ;;
+                *) hz_log "ostrzeżenie: nieznany klucz $key w $file – pomijam" ;;
+            esac
+        else
+            hz_log "ostrzeżenie: niezrozumiała linia w $file – pomijam"
+        fi
+    done < "$file"
+    return 0
+}
+
+hz_validate_config() {
+    HZ_URL=${HZ_URL%/}
+    if [[ ! $HZ_URL =~ ^https?://[^[:space:]]+$ ]]; then
+        hz_log "HZ_URL musi być adresem http(s)://… (jest: '${HZ_URL}')"
+        return 1
+    fi
+    if [[ $HZ_URL == http://* && $HZ_ALLOW_HTTP != 1 ]]; then
+        hz_log "HZ_URL używa HTTP – token poszedłby otwartym tekstem. Użyj HTTPS (lub HZ_ALLOW_HTTP=1 tylko w sieci lokalnej/dev)."
+        return 1
+    fi
+    if [[ ! $HZ_TOKEN =~ ^hz_[A-Za-z0-9]{40,128}$ ]]; then
+        hz_log "HZ_TOKEN ma niepoprawny format (oczekiwano hz_…)"
+        return 1
+    fi
+    [[ $HZ_TIMEOUT =~ ^[0-9]+$ ]] || HZ_TIMEOUT=15
+    return 0
+}
+
+# Jedno żądanie; wynik: kod HTTP na stdout (000 = błąd połączenia), treść odpowiedzi w pliku $3.
+hz_request() {
+    local method=$1 path=$2 body_out=$3 payload_file=${4:-} args code
+    args=(--silent --show-error --max-time "$HZ_TIMEOUT" --connect-timeout 10
+        --output "$body_out" --write-out '%{http_code}' --config -
+        --user-agent "halo-ziemia-agent/$HZ_VERSION")
+    if [[ $method == POST ]]; then
+        args+=(--header 'Content-Type: application/json' --data-binary "@$payload_file")
+    fi
+    code=$(printf 'header = "Authorization: Bearer %s"\n' "$HZ_TOKEN" | curl "${args[@]}" "$HZ_URL$path" 2> "$body_out.err") || true
+    [[ $code =~ ^[0-9]{3}$ ]] || code=000
+    printf '%s' "$code"
+}
+
+hz_error_details() {
+    local body=$1
+    jq -r '[.message // empty, ((.details // [])[] )] | join("; ")' "$body" 2> /dev/null | head -c 1000
+}
+
+# Wysyłka z ponowieniami (błąd sieci, 5xx, 429). Przy 422 – zastępczy ping, aby nie wywołać fałszywego DOWN.
+hz_send() {
+    local payload_file=$1 verbose=$2 body code attempt=0 delay rc=2
+    body=$(mktemp)
+    # shellcheck disable=SC2064
+    trap "rm -f '$body' '$body.err'" RETURN
+
+    for delay in 0 $HZ_RETRY_DELAYS; do
+        ((attempt++))
+        ((delay > 0)) && sleep "$delay"
+        code=$(hz_request POST /api/v1/heartbeat "$body" "$payload_file")
+
+        case $code in
+            2??)
+                [[ $verbose == 1 ]] && { printf 'OK (HTTP %s): ' "$code"; cat "$body"; echo; }
+                return 0
+                ;;
+            000)
+                hz_log "próba $attempt: błąd połączenia: $(head -c 300 "$body.err" 2> /dev/null)"
+                rc=2
+                ;;
+            5?? | 429)
+                hz_log "próba $attempt: serwer odpowiedział HTTP $code"
+                rc=2
+                ;;
+            422)
+                hz_log "serwer odrzucił dane (HTTP 422): $(hz_error_details "$body") – wysyłam zastępczy ping"
+                code=$(hz_request GET /api/v1/ping "$body")
+                [[ $code == 2?? ]] || hz_log "ping też się nie powiódł (HTTP $code)"
+                return 3
+                ;;
+            401)
+                hz_log "nieprawidłowy lub unieważniony token (HTTP 401) – sprawdź HZ_TOKEN w $HZ_CONFIG"
+                return 3
+                ;;
+            *)
+                hz_log "serwer odrzucił żądanie (HTTP $code): $(hz_error_details "$body")"
+                return 3
+                ;;
+        esac
+    done
+
+    return "$rc"
+}
+
+hz_main() {
+    local mode=send payload_file rc
+    case ${1:-} in
+        --version) echo "halo-ziemia-agent $HZ_VERSION"; return 0 ;;
+        --dry-run) mode=dry ;;
+        --test) mode="test" ;;
+        "") ;;
+        -h | --help) sed -n '3,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; return 0 ;;
+        *) hz_log "nieznana opcja: $1"; return 1 ;;
+    esac
+
+    for cmd in curl jq; do
+        command -v "$cmd" > /dev/null 2>&1 || { hz_log "brak programu $cmd (apt install $cmd)"; return 1; }
+    done
+
+    if [[ $mode == dry ]]; then
+        hz_load_config "$HZ_CONFIG" 2> /dev/null || true
+        hz_build_payload "$HZ_VERSION" | jq .
+        return 0
+    fi
+
+    hz_load_config "$HZ_CONFIG" || return 1
+    hz_validate_config || return 1
+
+    payload_file=$(mktemp)
+    if ! hz_build_payload "$HZ_VERSION" > "$payload_file" || [[ ! -s $payload_file ]]; then
+        hz_log "nie udało się zbudować payloadu – wysyłam sam ping"
+        printf '{"schema":1,"agent_version":"%s"}' "$HZ_VERSION" > "$payload_file"
+    fi
+
+    hz_send "$payload_file" "$([[ $mode == test ]] && echo 1 || echo 0)"
+    rc=$?
+    rm -f "$payload_file"
+    return "$rc"
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+    umask 077
+    hz_main "$@"
+    exit $?
+fi

@@ -1,0 +1,6 @@
+/dev/sda1      ext4   500107862016 200043144806   4% /
+/dev/sda1      ext4   500107862016 200043144806   4% /var/lib/docker/bind
+/dev/mmcblk0p1 vfat      535805952     63967232   -  /boot/firmware
+/dev/sdb1      ext4  2000398934016 1800359040614 12% /mnt/backup
+/dev/sdc1      ext4   100000000000  10000000000   1% /mnt/my disk
+nas:/share     nfs4  4000000000000 1000000000000  -  /mnt/nas

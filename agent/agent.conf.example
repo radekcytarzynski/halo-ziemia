@@ -1,0 +1,24 @@
+# /etc/halo-ziemia/agent.conf – konfiguracja agenta halo-ziemia (chmod 600, zawiera token).
+# Format: KLUCZ="wartość". Plik jest parsowany, nie wykonywany.
+
+# Adres panelu (tylko HTTPS).
+HZ_URL="https://monitor.example.com"
+
+# Token urządzenia z panelu (pokazywany raz przy utworzeniu).
+HZ_TOKEN="hz_..."
+
+# Opcjonalnie: tylko te punkty montowania (oddzielone spacją). Puste = wszystkie poza tmpfs/overlay itp.
+#HZ_MOUNTS="/ /mnt/backup"
+
+# Opcjonalnie: dyski SMART (domyślnie: smartctl --scan). Typ po dwukropku, np. dla USB "sat".
+#HZ_SMART_DEVICES="/dev/sda /dev/sdb:sat /dev/nvme0"
+
+# Odczyt SMART co tyle sekund (pomiędzy – z cache). Uśpione dyski nie są wybudzane.
+#HZ_SMART_INTERVAL="600"
+
+# Katalog pluginów checków i limit czasu jednego checka (s).
+#HZ_CHECKS_DIR="/etc/halo-ziemia/checks.d"
+#HZ_CHECK_TIMEOUT="20"
+
+# Limit czasu żądania HTTP (s).
+#HZ_TIMEOUT="15"

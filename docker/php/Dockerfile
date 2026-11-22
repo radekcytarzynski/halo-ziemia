@@ -4,7 +4,7 @@ ARG UID=1000
 ARG GID=1000
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git unzip libicu-dev libzip-dev shellcheck bats \
+ && apt-get install -y --no-install-recommends git unzip jq libicu-dev libzip-dev shellcheck bats \
  && docker-php-ext-install -j"$(nproc)" intl pdo_mysql zip \
  && rm -rf /var/lib/apt/lists/*
 

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Stub curl: kolejne odpowiedzi z HZ_TEST_RESPONSES ("kod|treść" w kolejnych liniach),
+# zapisuje argumenty i stdin (konfigurację) do HZ_TEST_LOG.
+log=${HZ_TEST_LOG:?}
+counter="$log.count"
+n=$(( $(cat "$counter" 2> /dev/null || echo 0) + 1 ))
+echo "$n" > "$counter"
+{ echo "ARGS: $*"; echo "STDIN: $(cat)"; } >> "$log"
+
+out=""
+url=""
+while (($# > 0)); do
+    case $1 in
+        --output) out=$2; shift 2 ;;
+        --data-binary) cp "${2#@}" "$log.payload.$n"; shift 2 ;;
+        http*) url=$1; shift ;;
+        *) shift ;;
+    esac
+done
+echo "URL: $url" >> "$log"
+line=$(sed -n "${n}p" "${HZ_TEST_RESPONSES:?}")
+code=${line%%|*}
+body=${line#*|}
+if [[ $code == 000 ]]; then echo "curl: (7) Failed to connect" >&2; exit 7; fi
+printf '%s' "$body" > "$out"
+printf '%s' "$code"

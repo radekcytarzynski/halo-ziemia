@@ -1,0 +1,9 @@
+{"json_format_version":[1,0],"smartctl":{"version":[7,3],"exit_status":0},"device":{"name":"/dev/sda","type":"sat","protocol":"ATA"},
+ "smart_status":{"passed":true},
+ "ata_smart_attributes":{"revision":16,"table":[
+   {"id":1,"name":"Raw_Read_Error_Rate","value":200,"worst":200,"thresh":51,"raw":{"value":0,"string":"0"}},
+   {"id":5,"name":"Reallocated_Sector_Ct","value":200,"worst":200,"thresh":140,"raw":{"value":3,"string":"3"}},
+   {"id":9,"name":"Power_On_Hours","value":84,"worst":84,"thresh":0,"raw":{"value":12034,"string":"12034"}},
+   {"id":194,"name":"Temperature_Celsius","value":114,"worst":101,"thresh":0,"raw":{"value":36,"string":"36"}},
+   {"id":197,"name":"Current_Pending_Sector","value":200,"worst":200,"thresh":0,"raw":{"value":0,"string":"0"}}]},
+ "power_on_time":{"hours":12034},"temperature":{"current":36}}

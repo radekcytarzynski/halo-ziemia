@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Stub smartctl: --scan → scan.json, inaczej <basename>.json z katalogu HZ_TEST_SMART.
+dir=${HZ_TEST_SMART:?}
+if [[ " $* " == *" --scan "* ]]; then cat "$dir/scan.json"; exit 0; fi
+dev=${!#}
+echo "$*" >> "${HZ_TEST_LOG:-/dev/null}"
+file="$dir/$(basename "$dev").json"
+[[ -r $file ]] && cat "$file"
+jq -e '.smartctl.exit_status' "$file" > /dev/null 2>&1 && exit "$(jq -r '.smartctl.exit_status' "$file")"
+exit 0

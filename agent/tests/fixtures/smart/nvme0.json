@@ -1,0 +1,4 @@
+{"json_format_version":[1,0],"smartctl":{"version":[7,3],"exit_status":0},"device":{"name":"/dev/nvme0","type":"nvme","protocol":"NVMe"},
+ "smart_status":{"passed":false,"nvme":{"value":4}},
+ "nvme_smart_health_information_log":{"critical_warning":4,"temperature":41,"available_spare":100,"percentage_used":7,"power_on_hours":3021},
+ "temperature":{"current":41},"power_on_time":{"hours":3021}}

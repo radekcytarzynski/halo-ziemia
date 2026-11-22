@@ -109,7 +109,13 @@
         "qa": [
             "@cs",
             "@stan",
-            "@test"
+            "@test",
+            "@agent"
+        ],
+        "agent": [
+            "shellcheck -x agent/halo-ziemia-agent agent/lib/collect.sh agent/install.sh agent/uninstall.sh agent/tests/helper.bash agent/tests/stubs/*",
+            "shellcheck -s bash agent/checks.d/backup.sh.example",
+            "bats agent/tests"
         ]
     },
     "conflict": {
@@ -125,11 +131,12 @@
     "description": "halo-ziemia: monitoring urządzeń (heartbeat + metryki) z alarmami e-mail",
     "name": "halo-ziemia/app",
     "scripts-descriptions": {
-        "qa": "cs-fixer (dry-run) + phpstan + phpunit",
+        "qa": "cs-fixer (dry-run) + phpstan + phpunit + testy agenta",
         "cs": "Sprawdzenie stylu kodu",
         "cs-fix": "Poprawa stylu kodu",
         "stan": "PHPStan level max",
         "test": "Testy PHPUnit (przygotowuje bazę testową)",
-        "test-db": "Tworzy i migruje bazę testową"
+        "test-db": "Tworzy i migruje bazę testową",
+        "agent": "Agent: shellcheck + testy bats"
     }
 }

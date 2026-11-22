@@ -1,0 +1,19 @@
+[Unit]
+Description=halo-ziemia agent – heartbeat z metrykami
+Documentation=file:///usr/local/share/doc/halo-ziemia/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/halo-ziemia-agent
+SyslogIdentifier=halo-ziemia-agent
+# Root: smartctl i vcgencmd wymagają uprawnień. Ograniczamy resztę.
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=50
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/var/lib/halo-ziemia

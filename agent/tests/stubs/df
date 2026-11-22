@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+echo "Filesystem     Type             1B-blocks          Used IUse% Mounted on"
+cat "${HZ_TEST_DF:?}"
