@@ -2,7 +2,7 @@
 
 {% block title %}Pulpit{% endblock %}
 
-{% block importmap %}{{ importmap(['app', 'dashboard']) }}{% endblock %}
+{% block importmap %}{{ importmap(['app', 'dashboard'], {nonce: csp_nonce()}) }}{% endblock %}
 
 {% block content %}
     <div class="page-head">

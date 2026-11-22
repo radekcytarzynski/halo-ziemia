@@ -32,3 +32,9 @@ phpstan.neon
 /.composer-cache/
 /compose.override.yaml
 ###< halo-ziemia ###
+
+###> wdrożenie ###
+/build/
+/halo-ziemia.tar.gz
+/deploy/targets.local.psd1
+###< wdrożenie ###

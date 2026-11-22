@@ -2,6 +2,8 @@ parameters:
     app.base_url: '%env(APP_BASE_URL)%'
     app.timezone_display: '%env(APP_TIMEZONE_DISPLAY)%'
     app.watchdog_url: '%env(default::WATCHDOG_URL)%'
+    env(PHP_CLI): 'php'
+    app.php_cli: '%env(PHP_CLI)%'
 
 services:
     _defaults:

@@ -64,4 +64,19 @@ final class TickCommandTest extends KernelTestCase
         self::assertNotNull($email);
         self::assertEmailHeaderSame($email, 'Subject', '[halo-ziemia] Test powiadomień');
     }
+
+    public function testStatusCommand(): void
+    {
+        $this->createDeviceWithToken();
+        $tester = new CommandTester((new Application(self::$kernel ?? self::bootKernel()))->find('app:status'));
+
+        self::assertSame(Command::SUCCESS, $tester->execute([]));
+        $display = (string) preg_replace('/\s+/', ' ', $tester->getDisplay());
+        self::assertStringContainsString('app:tick jeszcze się nie wykonał', $display);
+        self::assertStringContainsString('Urządzenia: 1 × Oczekuje', $display);
+
+        $this->tester->execute([]);
+        $tester->execute([]);
+        self::assertStringContainsString('Cron: OK', $tester->getDisplay());
+    }
 }

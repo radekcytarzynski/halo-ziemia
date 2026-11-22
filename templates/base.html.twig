@@ -9,7 +9,7 @@
     <link rel="icon" href="{{ asset('images/favicon.svg') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
     {% block stylesheets %}{% endblock %}
-    {% block importmap %}{{ importmap('app') }}{% endblock %}
+    {% block importmap %}{{ importmap('app', {nonce: csp_nonce()}) }}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
 {% block body %}

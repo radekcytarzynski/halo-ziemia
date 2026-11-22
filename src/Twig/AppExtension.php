@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Http\CspNonce;
 use App\Metrics\MetricUnit;
 use Psr\Clock\ClockInterface;
 use Twig\Attribute\AsTwigFilter;
@@ -11,8 +12,16 @@ use Twig\Attribute\AsTwigFunction;
 
 final readonly class AppExtension
 {
-    public function __construct(private ClockInterface $clock)
+    public function __construct(
+        private ClockInterface $clock,
+        private CspNonce $cspNonce,
+    ) {
+    }
+
+    #[AsTwigFunction('csp_nonce')]
+    public function cspNonce(): string
     {
+        return $this->cspNonce->get();
     }
 
     #[AsTwigFilter('hz_number')]

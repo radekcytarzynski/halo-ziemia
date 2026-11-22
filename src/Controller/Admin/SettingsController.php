@@ -61,6 +61,7 @@ final class SettingsController extends AbstractController
             'watchdog_configured' => $watchdog->isConfigured(),
             'mail_from_effective' => $settings->mailFrom(),
             'project_dir' => $this->getParameter('kernel.project_dir'),
+            'php_cli' => $this->getParameter('app.php_cli'),
         ]);
     }
 }

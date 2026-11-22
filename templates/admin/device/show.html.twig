@@ -6,7 +6,7 @@
 {% block stylesheets %}
     <link rel="stylesheet" href="{{ asset('lib/uplot/uPlot.min.css') }}">
 {% endblock %}
-{% block importmap %}{{ importmap(['app', 'charts']) }}{% endblock %}
+{% block importmap %}{{ importmap(['app', 'charts'], {nonce: csp_nonce()}) }}{% endblock %}
 
 {% block content %}
     {% set now = hz_now() %}

@@ -42,6 +42,7 @@ security:
         - { path: ^/api/, roles: ROLE_DEVICE }
         - { path: ^/login$, roles: PUBLIC_ACCESS }
         - { path: ^/agent/, roles: PUBLIC_ACCESS }
+        - { path: ^/health, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_ADMIN }
 
 when@test:

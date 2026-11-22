@@ -1,0 +1,7 @@
+# Skrypty uruchamiane na Linuksie (serwer, urządzenia) muszą mieć końce linii LF.
+*.sh text eol=lf
+agent/halo-ziemia-agent text eol=lf
+agent/systemd/* text eol=lf
+agent/tests/stubs/* text eol=lf
+*.bats text eol=lf
+*.bash text eol=lf

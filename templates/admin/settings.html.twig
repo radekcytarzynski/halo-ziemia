@@ -27,9 +27,9 @@
             {% endif %}
             <p class="muted small">Wpisy crona w panelu hostingu (ścieżkę dostosuj do katalogu wydania):</p>
             <div class="snippet">
-                <pre id="cron-lines"><code>* * * * * php {{ project_dir }}/bin/console app:tick --no-interaction &gt;/dev/null 2&gt;&amp;1
-5 * * * * php {{ project_dir }}/bin/console app:rollup --no-interaction &gt;/dev/null 2&gt;&amp;1
-30 3 * * * php {{ project_dir }}/bin/console app:retention --no-interaction &gt;/dev/null 2&gt;&amp;1</code></pre>
+                <pre id="cron-lines"><code>* * * * * {{ php_cli }} {{ project_dir }}/bin/console app:tick --no-interaction &gt;/dev/null 2&gt;&amp;1
+5 * * * * {{ php_cli }} {{ project_dir }}/bin/console app:rollup --no-interaction &gt;/dev/null 2&gt;&amp;1
+30 3 * * * {{ php_cli }} {{ project_dir }}/bin/console app:retention --no-interaction &gt;/dev/null 2&gt;&amp;1</code></pre>
                 <button type="button" class="btn btn-sm copy-btn" data-copy-target="cron-lines">Kopiuj</button>
             </div>
 

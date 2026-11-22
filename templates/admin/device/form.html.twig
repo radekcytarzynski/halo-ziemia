@@ -2,7 +2,7 @@
 
 {% block title %}{{ device ? 'Edycja: ' ~ device.name : 'Nowe urządzenie' }}{% endblock %}
 
-{% block importmap %}{{ importmap(['app', 'device-form']) }}{% endblock %}
+{% block importmap %}{{ importmap(['app', 'device-form'], {nonce: csp_nonce()}) }}{% endblock %}
 
 {% block content %}
     <div class="page-head">

@@ -1,9 +1,10 @@
 framework:
     asset_mapper:
-        # The paths to make available to the asset mapper.
         paths:
             - assets/
         missing_import_mode: strict
+        # Bez polyfilla es-module-shims z CDN (wszystkie współczesne przeglądarki obsługują importmapy).
+        importmap_polyfill: false
 
 when@prod:
     framework:
