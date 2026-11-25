@@ -105,6 +105,20 @@ final readonly class DeviceManager
         $this->entityManager->flush();
     }
 
+    /**
+     * @param list<string> $keys pusta lista = automatycznie
+     */
+    public function setDashboardIndicators(Device $device, array $keys): void
+    {
+        if ($keys === $device->getDashboardIndicators()) {
+            return;
+        }
+        $device->setDashboardIndicators($keys);
+        $device->touch($this->clock->now());
+        $this->events->record($device, EventType::ConfigChange, [] === $keys ? 'Wskaźniki na pulpicie: automatyczne' : 'Wskaźniki na pulpicie: '.implode(', ', $keys));
+        $this->entityManager->flush();
+    }
+
     public function mute(Device $device, \DateTimeImmutable $until): void
     {
         $device->setMutedUntil($until);

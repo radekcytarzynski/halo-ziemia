@@ -124,6 +124,11 @@ final class DeviceController extends AbstractController
             'chart_labels' => $chartLabels,
             'dashboard_chart_options' => array_combine($metricKeys, array_map(static fn (string $k): string => KeyMetrics::label($k, $device->getDiskLabels()) ?? $k, $metricKeys)),
             'dashboard_chart_auto' => array_values(array_intersect(DashboardBuilder::SPARKLINE_METRICS, $metricKeys))[0] ?? null,
+            'indicator_options' => DashboardBuilder::indicatorOptions($device, $metricKeys),
+            'indicator_checked' => [] !== array_intersect($device->getDashboardIndicators(), $metricKeys)
+                ? $device->getDashboardIndicators()
+                : DashboardBuilder::autoIndicatorKeys($device, \is_array($metrics) ? $metrics : []),
+            'indicator_max' => DashboardBuilder::MAX_INDICATORS,
             'disks' => DiskInventory::rows($device),
             'disk_label_max' => DiskInventory::MAX_LABEL_LENGTH,
             'range' => $range,
@@ -261,6 +266,38 @@ final class DeviceController extends AbstractController
         $this->addFlash('success', 'Zapisano wykres na pulpicie.');
 
         return $this->redirectToRoute('app_device_show', ['id' => $device->getId(), '_fragment' => 'charts']);
+    }
+
+    /**
+     * Wskaźniki na karcie pulpitu: zaznaczone metryki (tylko raportowane przez urządzenie, najwyżej
+     * MAX_INDICATORS) albo powrót do automatycznych (reset albo nic nie zaznaczono).
+     */
+    #[Route('/{id}/dashboard-indicators', name: 'app_device_dashboard_indicators', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function dashboardIndicators(Device $device, Request $request): Response
+    {
+        $this->assertCsrf('device-dashboard-indicators'.$device->getId(), $request);
+        $redirect = $this->redirectToRoute('app_device_show', ['id' => $device->getId(), '_fragment' => 'dashboard-indicators']);
+
+        $keys = [];
+        if (!$request->request->has('reset')) {
+            $metrics = $device->getLastSnapshot()['metrics'] ?? [];
+            $metrics = \is_array($metrics) ? $metrics : [];
+            foreach ($request->request->all('indicators') as $key) {
+                if (\is_string($key) && \array_key_exists($key, $metrics) && !\in_array($key, $keys, true)) {
+                    $keys[] = $key;
+                }
+            }
+            if (\count($keys) > DashboardBuilder::MAX_INDICATORS) {
+                $this->addFlash('error', \sprintf('Wybierz najwyżej %d wskaźników.', DashboardBuilder::MAX_INDICATORS));
+
+                return $redirect;
+            }
+        }
+
+        $this->manager->setDashboardIndicators($device, $keys);
+        $this->addFlash('success', [] === $keys ? 'Pulpit pokazuje wskaźniki automatyczne.' : 'Zapisano wskaźniki na pulpicie.');
+
+        return $redirect;
     }
 
     #[Route('/{id}/unmute', name: 'app_device_unmute', requirements: ['id' => '\d+'], methods: ['POST'])]

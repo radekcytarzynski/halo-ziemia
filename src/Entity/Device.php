@@ -100,6 +100,14 @@ class Device
     #[ORM\Column(length: 190, nullable: true)]
     private ?string $dashboardChart = null;
 
+    /**
+     * Klucze metryk wskaźników na karcie dashboardu, w kolejności; null = automatycznie.
+     *
+     * @var list<string>|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $dashboardIndicators = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -361,6 +369,22 @@ class Device
     public function setDashboardChart(?string $dashboardChart): void
     {
         $this->dashboardChart = $dashboardChart;
+    }
+
+    /**
+     * @return list<string> pusta lista = automatycznie
+     */
+    public function getDashboardIndicators(): array
+    {
+        return $this->dashboardIndicators ?? [];
+    }
+
+    /**
+     * @param list<string> $keys
+     */
+    public function setDashboardIndicators(array $keys): void
+    {
+        $this->dashboardIndicators = [] === $keys ? null : $keys;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

@@ -29,6 +29,25 @@ final readonly class DashboardBuilder
     /** Metryki miniwykresu w kolejności preferencji, gdy urządzenie nie ma wybranej (Device::getDashboardChart). */
     public const array SPARKLINE_METRICS = ['cpu.used_pct', 'cpu.temp_c', 'load.1', 'disk./.used_pct'];
 
+    /** Wskaźniki automatyczne poza dyskiem, w kolejności na karcie. */
+    public const array AUTO_INDICATORS = ['cpu.used_pct', 'cpu.temp_c', 'load.1', 'check.backup.age_s'];
+
+    /** Najwięcej wskaźników wybranych ręcznie. */
+    public const int MAX_INDICATORS = 8;
+
+    private const array INDICATOR_LABELS = [
+        'cpu.used_pct' => 'CPU',
+        'cpu.iowait_pct' => 'CPU iowait',
+        'cpu.temp_c' => 'Temp. CPU',
+        'load.1' => 'Load',
+        'load.5' => 'Load 5 min',
+        'load.15' => 'Load 15 min',
+        'mem.available_pct' => 'Wolna pamięć',
+        'mem.swap_used_pct' => 'Swap',
+        'uptime_s' => 'Uptime',
+        'check.backup.age_s' => 'Ostatni backup',
+    ];
+
     public function __construct(
         private DeviceRepository $devices,
         private AlertStateRepository $states,
@@ -87,7 +106,8 @@ final readonly class DashboardBuilder
     }
 
     /**
-     * Kluczowe wskaźniki: dysk (wybrany w panelu albo najbardziej zajęty), wykorzystanie i temperatura CPU, load, wiek backupu.
+     * Wskaźniki karty: wybrane w panelu (Device::getDashboardIndicators), a gdy brak wyboru albo żadna
+     * z wybranych metryk nie jest już raportowana – automatyczne (autoIndicatorKeys).
      *
      * @param array<array-key, mixed> $metrics
      * @param list<AlertState>        $states
@@ -105,21 +125,91 @@ final readonly class DashboardBuilder
             }
         }
 
-        $result = [];
-        $disk = $this->dashboardDisk($device, $metrics);
-        if (null !== $disk) {
-            [$mount, $value, $key] = $disk;
-            $result[] = ['label' => $device->getDiskLabel($mount) ?? 'Dysk '.$mount, 'value' => $value, 'unit' => '%', 'severity' => $severityByValueKey[$key] ?? null];
+        $keys = array_values(array_filter($device->getDashboardIndicators(), static fn (string $k): bool => \array_key_exists($k, $metrics)));
+        if ([] === $keys) {
+            $keys = self::autoIndicatorKeys($device, $metrics);
         }
 
-        foreach (['cpu.used_pct' => 'CPU', 'cpu.temp_c' => 'Temp. CPU', 'load.1' => 'Load', 'check.backup.age_s' => 'Ostatni backup'] as $key => $label) {
+        $result = [];
+        foreach ($keys as $key) {
             $value = $metrics[$key] ?? null;
             if (\is_float($value) || \is_int($value)) {
-                $result[] = ['label' => $label, 'value' => (float) $value, 'unit' => MetricUnit::guess($key), 'severity' => $severityByValueKey[$key] ?? null];
+                $result[] = ['label' => self::indicatorLabel($device, $key), 'value' => (float) $value, 'unit' => MetricUnit::guess($key), 'severity' => $severityByValueKey[$key] ?? null];
             }
         }
 
         return $result;
+    }
+
+    /**
+     * Wskaźniki automatyczne: dysk (wybrany w panelu albo najbardziej zajęty) i AUTO_INDICATORS, o ile raportowane.
+     *
+     * @param array<array-key, mixed> $metrics
+     *
+     * @return list<string>
+     */
+    public static function autoIndicatorKeys(Device $device, array $metrics): array
+    {
+        $keys = [];
+        $disk = self::dashboardDisk($device, $metrics);
+        if (null !== $disk) {
+            $keys[] = $disk[2];
+        }
+        foreach (self::AUTO_INDICATORS as $key) {
+            $value = $metrics[$key] ?? null;
+            if (\is_float($value) || \is_int($value)) {
+                $keys[] = $key;
+            }
+        }
+
+        return $keys;
+    }
+
+    /**
+     * Krótka etykieta kafelka wskaźnika, np. "CPU", "Backup" (nazwa dysku), "Temp. Lexar".
+     */
+    public static function indicatorLabel(Device $device, string $key): string
+    {
+        if (isset(self::INDICATOR_LABELS[$key])) {
+            return self::INDICATOR_LABELS[$key];
+        }
+        if (preg_match('/^disk\.(.+)\.used_pct$/', $key, $m)) {
+            return $device->getDiskLabel($m[1]) ?? 'Dysk '.$m[1];
+        }
+        if (preg_match('/^smart\.(.+)\.temp_c$/', $key, $m)) {
+            return 'Temp. '.($device->getDiskLabel($m[1]) ?? $m[1]);
+        }
+
+        return KeyMetrics::label($key, $device->getDiskLabels()) ?? $key;
+    }
+
+    /**
+     * Metryki do wyboru wskaźników w kolejności kart (dyski, CPU, temperatura, load, pamięć, checki), potem reszta.
+     *
+     * @param list<string> $keys
+     *
+     * @return array<string, string> klucz => pełna etykieta
+     */
+    public static function indicatorOptions(Device $device, array $keys): array
+    {
+        $groups = ['/^disk\..+\.used_pct$/', '/^cpu\.used_pct$/', '/^cpu\.temp_c$/', '/^cpu\./', '/^load\.1$/', '/^load\.5$/', '/^load\./', '/^mem\./', '/^check\./', '/^smart\..+\.temp_c$/'];
+        $rank = static function (string $key) use ($groups): int {
+            foreach ($groups as $i => $pattern) {
+                if (preg_match($pattern, $key)) {
+                    return $i;
+                }
+            }
+
+            return \count($groups);
+        };
+        usort($keys, static fn (string $a, string $b): int => [$rank($a), $a] <=> [$rank($b), $b]);
+
+        $options = [];
+        foreach ($keys as $key) {
+            $options[$key] = KeyMetrics::label($key, $device->getDiskLabels()) ?? $key;
+        }
+
+        return $options;
     }
 
     /**
@@ -129,7 +219,7 @@ final readonly class DashboardBuilder
      *
      * @return array{string, float, string}|null punkt montowania, zajętość %, klucz metryki
      */
-    private function dashboardDisk(Device $device, array $metrics): ?array
+    private static function dashboardDisk(Device $device, array $metrics): ?array
     {
         $chosen = $device->getDashboardDisk();
         if (null !== $chosen) {
