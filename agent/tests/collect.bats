@@ -154,3 +154,15 @@ setup() { hz_test_setup; }
     run hz_cpu
     [ "$output" = '{"used_pct":75.0,"iowait_pct":25.0}' ]
 }
+
+@test "polskie locale: liczby z kropką (poprawny JSON)" {
+    locale -a 2> /dev/null | grep -qi '^pl_PL.utf-\?8$' || skip "brak locale pl_PL.UTF-8"
+    export LANG=pl_PL.UTF-8 LC_ALL=pl_PL.UTF-8
+    unset LC_NUMERIC
+    . "$AGENT_DIR/lib/collect.sh"
+    echo "94000 79100 1440" > "$HZ_STATE_DIR/cpu.stat"
+    run hz_cpu
+    [ "$output" = '{"used_pct":20.0,"iowait_pct":5.0}' ]
+    run hz_cpu_temp
+    [ "$output" = "52.3" ]
+}

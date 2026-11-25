@@ -16,7 +16,7 @@
 
 set -uo pipefail
 
-HZ_VERSION="1.1.1"
+HZ_VERSION="1.1.2"
 HZ_CONFIG=${HZ_CONFIG:-/etc/halo-ziemia/agent.conf}
 HZ_TIMEOUT=${HZ_TIMEOUT:-15}
 HZ_ALLOW_HTTP=${HZ_ALLOW_HTTP:-0}

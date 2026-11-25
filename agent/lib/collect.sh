@@ -4,6 +4,10 @@
 # Każda funkcja hz_* wypisuje fragment JSON albo "null" (brak danych / brak narzędzia).
 # Ścieżki /proc i /sys oraz katalog stanu można podmienić (testy): HZ_PROC, HZ_SYS, HZ_STATE_DIR.
 
+# Liczby zawsze z kropką dziesiętną: mawk w locale np. pl_PL wypisuje "52,3", czyli niepoprawny JSON.
+export LC_NUMERIC=C
+if [[ -n ${LC_ALL:-} ]]; then export LC_ALL=C; fi
+
 HZ_PROC=${HZ_PROC:-/proc}
 HZ_SYS=${HZ_SYS:-/sys}
 HZ_STATE_DIR=${HZ_STATE_DIR:-/var/lib/halo-ziemia}

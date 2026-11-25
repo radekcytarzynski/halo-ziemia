@@ -4,7 +4,8 @@ ARG UID=1000
 ARG GID=1000
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git unzip jq libicu-dev libzip-dev shellcheck bats \
+ && apt-get install -y --no-install-recommends git unzip jq libicu-dev libzip-dev shellcheck bats locales \
+ && sed -i 's/^# *pl_PL.UTF-8/pl_PL.UTF-8/' /etc/locale.gen && locale-gen \
  && docker-php-ext-install -j"$(nproc)" intl pdo_mysql zip \
  && rm -rf /var/lib/apt/lists/*
 
