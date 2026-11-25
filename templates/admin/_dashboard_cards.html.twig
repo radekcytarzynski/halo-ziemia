@@ -37,8 +37,9 @@
                     {% if card.muted %}<span class="tag tag-muted" title="do {{ d.mutedUntil|date('Y-m-d H:i') }}">serwis</span>{% endif %}
                 </p>
                 {% if d.primaryLocalIp or d.lastIp %}
-                    <p class="device-card-ip mono" title="{{ d.localIps|join(', ') }}{% if d.lastIp %} · publiczny {{ d.lastIp }}{% endif %}">
-                        {{ d.primaryLocalIp ?? d.lastIp }}{% if d.localIps|length > 1 %} <span class="muted">+{{ d.localIps|length - 1 }}</span>{% endif %}
+                    <p class="device-card-ip">
+                        {% if d.primaryLocalIp %}<span title="Adresy lokalne: {{ d.localIps|join(', ') }}"><span class="device-card-ip-label">lokalny</span> <span class="mono">{{ d.primaryLocalIp }}</span>{% if d.localIps|length > 1 %} <span class="muted">+{{ d.localIps|length - 1 }}</span>{% endif %}</span>{% endif %}
+                        {% if d.lastIp %}<span title="Adres publiczny, z którego przyszedł ostatni heartbeat"><span class="device-card-ip-label">publiczny</span> <span class="mono">{{ d.lastIp }}</span></span>{% endif %}
                     </p>
                 {% endif %}
 

@@ -63,6 +63,7 @@ final class DiskAdminTest extends PanelTestCase
         self::assertSelectorTextContains('.indicator dd', '20');
         self::assertSelectorTextContains('.device-card-ip', '192.168.1.10');
         self::assertSelectorTextContains('.device-card-ip', '+2');
+        self::assertSelectorTextContains('.device-card-ip', 'publiczny 203.0.113.7');
 
         // Tytuł alarmu dostaje nazwę przy następnym heartbeacie
         $this->heartbeat($token, '2026-11-20 12:00:00');
