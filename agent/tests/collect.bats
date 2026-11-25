@@ -147,3 +147,10 @@ setup() { hz_test_setup; }
     run hz_cpu
     [ "$output" = "null" ]
 }
+
+@test "cpu: idle cofnięty kosztem iowait (NOHZ) nie daje null" {
+    # Różnica: razem 1200, idle -100, iowait +400 → bezczynność 300, praca 900 (75%), iowait 300 (25%).
+    echo "94000 80100 1100" > "$HZ_STATE_DIR/cpu.stat"
+    run hz_cpu
+    [ "$output" = '{"used_pct":75.0,"iowait_pct":25.0}' ]
+}

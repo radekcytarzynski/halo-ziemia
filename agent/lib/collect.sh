@@ -91,12 +91,15 @@ hz_cpu() {
 
     awk -v c="$current" -v p="$previous" 'BEGIN {
         split(c, a, " "); split(p, b, " ")
-        total = a[1] - b[1]; idle = a[2] - b[2]; iowait = a[3] - b[3]
-        if (total <= 0 || idle < 0) { print "null"; exit }    # restart systemu albo brak upływu czasu
-        if (iowait < 0) iowait = 0                             # licznik iowait potrafi się cofnąć
-        used = total - idle - iowait
-        if (used < 0) used = 0
-        printf "{\"used_pct\":%.1f,\"iowait_pct\":%.1f}\n", used * 100 / total, iowait * 100 / total
+        # Przy bezczynnym CPU jądro przesuwa czas między idle a iowait (oba liczniki potrafią się cofnąć),
+        # dlatego bezczynność liczymy łącznie, a iowait przycinamy do zakresu.
+        total = a[1] - b[1]; idle = (a[2] + a[3]) - (b[2] + b[3]); iowait = a[3] - b[3]
+        if (total <= 0) { print "null"; exit }    # restart systemu albo brak upływu czasu
+        if (idle < 0) idle = 0
+        if (idle > total) idle = total
+        if (iowait < 0) iowait = 0
+        if (iowait > idle) iowait = idle
+        printf "{\"used_pct\":%.1f,\"iowait_pct\":%.1f}\n", (total - idle) * 100 / total, iowait * 100 / total
     }'
 }
 
