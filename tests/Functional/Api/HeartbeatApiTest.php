@@ -59,8 +59,9 @@ final class HeartbeatApiTest extends WebTestCase
             'SELECT m.metric_key, s.value FROM sample s JOIN metric m ON m.id = s.metric_id WHERE s.device_id = ? AND s.ts = ?',
             [$device->getId(), (new \DateTimeImmutable(self::NOW))->getTimestamp()],
         );
-        self::assertCount(20, $samples);
+        self::assertCount(22, $samples);
         self::assertEquals(62.5, $samples['mem.available_pct']);
+        self::assertEquals(23.5, $samples['cpu.used_pct']);
         self::assertSame('%', $this->connection()->fetchOne("SELECT unit FROM metric WHERE metric_key = 'disk./.used_pct'"));
 
         $check = $this->em()->getRepository(CheckResult::class)->findOneBy(['device' => $device, 'name' => 'backup']);

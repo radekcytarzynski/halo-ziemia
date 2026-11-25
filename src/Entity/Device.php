@@ -96,7 +96,7 @@ class Device
     #[ORM\Column(length: 151, nullable: true)]
     private ?string $dashboardDisk = null;
 
-    /** Klucz metryki miniwykresu na karcie dashboardu; null = automatycznie (temperatura CPU, load, dysk /). */
+    /** Klucz metryki miniwykresu na karcie dashboardu; null = automatycznie (wykorzystanie CPU, temperatura CPU, load, dysk /). */
     #[ORM\Column(length: 190, nullable: true)]
     private ?string $dashboardChart = null;
 

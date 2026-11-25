@@ -21,7 +21,9 @@ final class HeartbeatParserTest extends TestCase
 
         self::assertSame([
             'check.backup.age_s' => 5400.0,
+            'cpu.iowait_pct' => 1.2,
             'cpu.temp_c' => 48.5,
+            'cpu.used_pct' => 23.5,
             'disk./.free_b' => 300000000000.0,
             'disk./.inodes_used_pct' => 4.2,
             'disk./.used_pct' => 40.0,
@@ -174,6 +176,7 @@ final class HeartbeatParserTest extends TestCase
         yield 'uptime napisem' => [['schema' => 1, 'uptime_s' => '123'], 'uptime_s: oczekiwano liczby'];
         yield 'ujemny uptime' => [['schema' => 1, 'uptime_s' => -1], 'uptime_s: wartość poza zakresem'];
         yield 'nierealna temperatura' => [['schema' => 1, 'cpu_temp_c' => 900], 'cpu_temp_c: wartość poza zakresem'];
+        yield 'cpu ponad 100%' => [['schema' => 1, 'cpu' => ['used_pct' => 120]], 'cpu.used_pct: wartość poza zakresem'];
         yield 'load jako obiekt' => [['schema' => 1, 'load' => ['a' => 1]], 'load: oczekiwano tablicy'];
         yield 'load za długi' => [['schema' => 1, 'load' => [1, 2, 3, 4]], 'load: maksymalnie 3 elementów'];
         yield 'mem jako lista' => [['schema' => 1, 'mem' => [1]], 'mem: oczekiwano obiektu'];
@@ -237,6 +240,7 @@ final class HeartbeatParserTest extends TestCase
             'load' => [0.12, 0.20, 0.18],
             'mem' => ['total_kb' => 8000000, 'available_kb' => 5000000, 'swap_used_kb' => 0],
             'cpu_temp_c' => 48.5,
+            'cpu' => ['used_pct' => 23.5, 'iowait_pct' => 1.2],
             'disks' => [
                 ['mount' => '/', 'device' => '/dev/sda1', 'size_b' => 500000000000, 'used_b' => 200000000000, 'inodes_used_pct' => 4.2],
             ],

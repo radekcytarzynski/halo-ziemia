@@ -74,6 +74,7 @@ Spłaszczanie do kluczy metryk:
 | Sekcja payloadu | Klucze metryk |
 |-----------------|---------------|
 | `uptime_s`, `cpu_temp_c` | `uptime_s`, `cpu.temp_c` |
+| `cpu: {used_pct, iowait_pct}` (średnia od poprzedniego heartbeatu) | `cpu.used_pct`, `cpu.iowait_pct` |
 | `load: [1, 5, 15]` | `load.1`, `load.5`, `load.15` |
 | `mem` | `mem.available_pct`, `mem.available_kb`, `mem.swap_used_kb`, `mem.swap_used_pct` (gdy jest `swap_total_kb`) |
 | `disks[]` | `disk.<mount>.used_pct`, `disk.<mount>.free_b`, `disk.<mount>.inodes_used_pct` |

@@ -48,6 +48,7 @@ Kody wyjścia: `0` OK, `1` błąd konfiguracji, `2` błąd połączenia (po 2 po
 | Sekcja | Źródło |
 |--------|--------|
 | uptime, load, RAM/swap | `/proc/uptime`, `/proc/loadavg`, `/proc/meminfo` |
+| wykorzystanie CPU, iowait (średnia od poprzedniego uruchomienia; pierwsze uruchomienie tylko zapisuje liczniki w `cpu.stat`) | `/proc/stat` |
 | temperatura CPU | najwyższa z `/sys/class/thermal/thermal_zone*/temp`, fallback `vcgencmd measure_temp` |
 | dyski i i-węzły | `df` (bez tmpfs/overlay/squashfs itp.; bind mounty liczone raz; opcjonalnie tylko `HZ_MOUNTS`) |
 | SMART | `smartctl -H -A -j -n standby` (uśpione dyski nie są wybudzane; odczyt co `HZ_SMART_INTERVAL`, domyślnie 10 min) |

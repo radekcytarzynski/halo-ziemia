@@ -8,6 +8,7 @@ HZ_PROC=${HZ_PROC:-/proc}
 HZ_SYS=${HZ_SYS:-/sys}
 HZ_STATE_DIR=${HZ_STATE_DIR:-/var/lib/halo-ziemia}
 HZ_SMART_INTERVAL=${HZ_SMART_INTERVAL:-600}
+HZ_CPU_MAX_GAP=${HZ_CPU_MAX_GAP:-600}
 HZ_CHECK_TIMEOUT=${HZ_CHECK_TIMEOUT:-20}
 HZ_CHECKS_DIR=${HZ_CHECKS_DIR:-/etc/halo-ziemia/checks.d}
 HZ_MOUNTS=${HZ_MOUNTS:-}
@@ -63,6 +64,40 @@ hz_cpu_temp() {
         [[ $value =~ ^[0-9]+(\.[0-9]+)?$ ]] && { echo "$value"; return; }
     fi
     echo null
+}
+
+# Wykorzystanie CPU od poprzedniego uruchomienia (czyli średnia z ostatniej minuty) z liczników /proc/stat:
+# {"used_pct": praca (bez idle i iowait), "iowait_pct": bezczynność w oczekiwaniu na dysk}.
+# Pierwsze uruchomienie, restart systemu albo przerwa > HZ_CPU_MAX_GAP s: null (tylko zapis liczników).
+hz_cpu() {
+    local cache="$HZ_STATE_DIR/cpu.stat" current previous="" now mtime
+    local re='^[0-9]+ [0-9]+ [0-9]+$'
+    [[ -r $HZ_PROC/stat ]] || { echo null; return; }
+    # Suma: user nice system idle iowait irq softirq steal (guest jest już wliczony w user).
+    current=$(awk '$1 == "cpu" { printf "%.0f %.0f %.0f\n", $2 + $3 + $4 + $5 + $6 + $7 + $8 + $9, $5, $6; exit }' "$HZ_PROC/stat")
+    [[ $current =~ $re ]] || { echo null; return; }
+
+    if [[ -r $cache ]]; then
+        now=$(date +%s)
+        mtime=$(stat -c %Y "$cache" 2> /dev/null || echo 0)
+        if ((now - mtime <= HZ_CPU_MAX_GAP)); then
+            read -r previous < "$cache" || previous=""
+        fi
+    fi
+    if [[ -d $HZ_STATE_DIR && -w $HZ_STATE_DIR ]]; then
+        printf '%s\n' "$current" > "$cache.tmp" && mv -f "$cache.tmp" "$cache"
+    fi
+    [[ $previous =~ $re ]] || { echo null; return; }
+
+    awk -v c="$current" -v p="$previous" 'BEGIN {
+        split(c, a, " "); split(p, b, " ")
+        total = a[1] - b[1]; idle = a[2] - b[2]; iowait = a[3] - b[3]
+        if (total <= 0 || idle < 0) { print "null"; exit }    # restart systemu albo brak upływu czasu
+        if (iowait < 0) iowait = 0                             # licznik iowait potrafi się cofnąć
+        used = total - idle - iowait
+        if (used < 0) used = 0
+        printf "{\"used_pct\":%.1f,\"iowait_pct\":%.1f}\n", used * 100 / total, iowait * 100 / total
+    }'
 }
 
 # Wejście: wyjście `df -B1 --output=source,fstype,size,used,ipcent,target` (bez nagłówka).
@@ -278,6 +313,7 @@ hz_build_payload() {
         --argjson load "$(hz_json hz_load)" \
         --argjson mem "$(hz_json hz_mem)" \
         --argjson temp "$(hz_json hz_cpu_temp)" \
+        --argjson cpu "$(hz_json hz_cpu)" \
         --argjson disks "$(hz_json hz_disks)" \
         --argjson smart "$(hz_json hz_smart)" \
         --argjson raid "$(hz_json hz_raid)" \
@@ -292,6 +328,7 @@ hz_build_payload() {
             load: $load,
             mem: $mem,
             cpu_temp_c: $temp,
+            cpu: $cpu,
             disks: $disks,
             smart: $smart,
             raid: $raid,

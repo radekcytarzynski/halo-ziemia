@@ -26,6 +26,7 @@ final class AgentContractTest extends TestCase
         copy($agent.'/checks.d/backup.sh.example', $checks.'/backup.sh');
         chmod($checks.'/backup.sh', 0o700);
         touch($state.'/last-success', time() - 3600);
+        file_put_contents($state.'/cpu.stat', "94000 79100 1440\n");
 
         $env = [
             'PATH' => $agent.'/tests/stubs:'.getenv('PATH'),
@@ -53,6 +54,8 @@ final class AgentContractTest extends TestCase
         self::assertSame('nas-test', $parsed->hostname);
         self::assertSame(864123.0, $parsed->metrics['uptime_s']);
         self::assertSame(52.3, $parsed->metrics['cpu.temp_c']);
+        self::assertSame(20.0, $parsed->metrics['cpu.used_pct']);
+        self::assertSame(5.0, $parsed->metrics['cpu.iowait_pct']);
         self::assertArrayHasKey('disk./mnt/backup.used_pct', $parsed->metrics);
         self::assertSame(1.0, $parsed->metrics['smart.sda.passed']);
         self::assertSame(0.0, $parsed->metrics['smart.nvme0.passed']);

@@ -27,7 +27,7 @@ final readonly class DashboardBuilder
     public const int CRON_STALE_SECONDS = 180;
 
     /** Metryki miniwykresu w kolejności preferencji, gdy urządzenie nie ma wybranej (Device::getDashboardChart). */
-    public const array SPARKLINE_METRICS = ['cpu.temp_c', 'load.1', 'disk./.used_pct'];
+    public const array SPARKLINE_METRICS = ['cpu.used_pct', 'cpu.temp_c', 'load.1', 'disk./.used_pct'];
 
     public function __construct(
         private DeviceRepository $devices,
@@ -87,7 +87,7 @@ final readonly class DashboardBuilder
     }
 
     /**
-     * Kluczowe wskaźniki: dysk (wybrany w panelu albo najbardziej zajęty), temperatura CPU, load, wiek backupu.
+     * Kluczowe wskaźniki: dysk (wybrany w panelu albo najbardziej zajęty), wykorzystanie i temperatura CPU, load, wiek backupu.
      *
      * @param array<array-key, mixed> $metrics
      * @param list<AlertState>        $states
@@ -112,7 +112,7 @@ final readonly class DashboardBuilder
             $result[] = ['label' => $device->getDiskLabel($mount) ?? 'Dysk '.$mount, 'value' => $value, 'unit' => '%', 'severity' => $severityByValueKey[$key] ?? null];
         }
 
-        foreach (['cpu.temp_c' => 'CPU', 'load.1' => 'Load', 'check.backup.age_s' => 'Ostatni backup'] as $key => $label) {
+        foreach (['cpu.used_pct' => 'CPU', 'cpu.temp_c' => 'Temp. CPU', 'load.1' => 'Load', 'check.backup.age_s' => 'Ostatni backup'] as $key => $label) {
             $value = $metrics[$key] ?? null;
             if (\is_float($value) || \is_int($value)) {
                 $result[] = ['label' => $label, 'value' => (float) $value, 'unit' => MetricUnit::guess($key), 'severity' => $severityByValueKey[$key] ?? null];

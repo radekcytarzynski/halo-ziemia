@@ -116,3 +116,34 @@ setup() { hz_test_setup; }
     run hz_json broken
     [ "$output" = "null" ]
 }
+
+@test "cpu: pierwsze uruchomienie zapisuje liczniki i zwraca null" {
+    run hz_cpu
+    [ "$output" = "null" ]
+    [ "$(cat "$HZ_STATE_DIR/cpu.stat")" = "95200 80000 1500" ]
+}
+
+@test "cpu: wykorzystanie i iowait od poprzedniego odczytu" {
+    # Różnica: razem 1200, idle 900, iowait 60 → praca 240 (20%), iowait 5%.
+    echo "94000 79100 1440" > "$HZ_STATE_DIR/cpu.stat"
+    run hz_cpu
+    [ "$output" = '{"used_pct":20.0,"iowait_pct":5.0}' ]
+    [ "$(cat "$HZ_STATE_DIR/cpu.stat")" = "95200 80000 1500" ]
+}
+
+@test "cpu: restart systemu albo stary odczyt → null" {
+    echo "999999 900000 1500" > "$HZ_STATE_DIR/cpu.stat"
+    run hz_cpu
+    [ "$output" = "null" ]
+
+    echo "94000 79100 1440" > "$HZ_STATE_DIR/cpu.stat"
+    touch -d '-1 hour' "$HZ_STATE_DIR/cpu.stat"
+    run hz_cpu
+    [ "$output" = "null" ]
+}
+
+@test "cpu: brak /proc/stat → null" {
+    HZ_PROC="$BATS_TEST_TMPDIR/nie-ma"
+    run hz_cpu
+    [ "$output" = "null" ]
+}

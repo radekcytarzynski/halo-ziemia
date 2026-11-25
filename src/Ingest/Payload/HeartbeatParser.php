@@ -60,6 +60,7 @@ final class HeartbeatParser
 
         $this->setMetric($metrics, 'uptime_s', $this->number($data, 'uptime_s', 'uptime_s', min: 0));
         $this->setMetric($metrics, 'cpu.temp_c', $this->number($data, 'cpu_temp_c', 'cpu_temp_c', min: -100, max: 200));
+        $this->parseCpu($data, $metrics);
         $this->parseLoad($data, $metrics);
         $this->parseMem($data, $metrics);
         $snapshot['disks'] = $this->parseDisks($data, $metrics);
@@ -83,6 +84,23 @@ final class HeartbeatParser
         ], $checks);
 
         return new ParsedHeartbeat($agentVersion, $hostname, $metrics, $checks, $snapshot);
+    }
+
+    /**
+     * cpu: {"used_pct", "iowait_pct"} – średnie od poprzedniego heartbeatu.
+     *
+     * @param array<array-key, mixed> $data
+     * @param array<string, float>    $metrics
+     */
+    private function parseCpu(array $data, array &$metrics): void
+    {
+        $cpu = $this->object($data, 'cpu', 'cpu');
+        if (null === $cpu) {
+            return;
+        }
+
+        $this->setMetric($metrics, 'cpu.used_pct', $this->number($cpu, 'used_pct', 'cpu.used_pct', min: 0, max: 100));
+        $this->setMetric($metrics, 'cpu.iowait_pct', $this->number($cpu, 'iowait_pct', 'cpu.iowait_pct', min: 0, max: 100));
     }
 
     /**

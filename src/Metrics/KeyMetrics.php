@@ -12,6 +12,7 @@ final class KeyMetrics
     /** wzorzec klucza => etykieta (%s = fragment z wildcardu) */
     private const array PATTERNS = [
         'disk.*.used_pct' => 'Dysk %s',
+        'cpu.used_pct' => 'Wykorzystanie CPU',
         'cpu.temp_c' => 'Temperatura CPU',
         'smart.*.temp_c' => 'Temperatura %s',
         'load.1' => 'Load (1 min)',
@@ -22,6 +23,7 @@ final class KeyMetrics
 
     /** Etykiety pozostałych metryk (lista wyboru wykresu, miniwykres na pulpicie). */
     private const array OTHER_LABELS = [
+        'cpu.iowait_pct' => 'CPU: oczekiwanie na dysk (iowait)',
         'load.5' => 'Load (5 min)',
         'load.15' => 'Load (15 min)',
         'mem.available_kb' => 'Wolna pamięć',
