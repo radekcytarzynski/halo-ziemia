@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Admin\DashboardBuilder;
 use App\Admin\Form\DeviceType;
 use App\Alerting\RuleMatcher;
 use App\Device\DeviceManager;
@@ -121,6 +122,8 @@ final class DeviceController extends AbstractController
             'metric_keys' => $metricKeys,
             'chart_keys' => $chartKeys,
             'chart_labels' => $chartLabels,
+            'dashboard_chart_options' => array_combine($metricKeys, array_map(static fn (string $k): string => KeyMetrics::label($k, $device->getDiskLabels()) ?? $k, $metricKeys)),
+            'dashboard_chart_auto' => array_values(array_intersect(DashboardBuilder::SPARKLINE_METRICS, $metricKeys))[0] ?? null,
             'disks' => DiskInventory::rows($device),
             'disk_label_max' => DiskInventory::MAX_LABEL_LENGTH,
             'range' => $range,
@@ -238,6 +241,26 @@ final class DeviceController extends AbstractController
         $this->addFlash('success', 'Zapisano ustawienia dysków. Tytuły alarmów zmienią się przy następnym heartbeacie.');
 
         return $this->redirectToRoute('app_device_show', ['id' => $device->getId(), '_fragment' => 'disks']);
+    }
+
+    /**
+     * Metryka miniwykresu na karcie pulpitu. Tylko klucze raportowane przez urządzenie; pusta = automatycznie.
+     */
+    #[Route('/{id}/dashboard-chart', name: 'app_device_dashboard_chart', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function dashboardChart(Device $device, Request $request): Response
+    {
+        $this->assertCsrf('device-dashboard-chart'.$device->getId(), $request);
+
+        $key = $request->request->getString('metric');
+        $metrics = $device->getLastSnapshot()['metrics'] ?? [];
+        if ('' !== $key && (!\is_array($metrics) || !\array_key_exists($key, $metrics))) {
+            throw $this->createNotFoundException('Urządzenie nie raportuje tej metryki.');
+        }
+
+        $this->manager->setDashboardChart($device, '' === $key ? null : $key);
+        $this->addFlash('success', 'Zapisano wykres na pulpicie.');
+
+        return $this->redirectToRoute('app_device_show', ['id' => $device->getId(), '_fragment' => 'charts']);
     }
 
     #[Route('/{id}/unmute', name: 'app_device_unmute', requirements: ['id' => '\d+'], methods: ['POST'])]

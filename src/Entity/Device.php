@@ -96,6 +96,10 @@ class Device
     #[ORM\Column(length: 151, nullable: true)]
     private ?string $dashboardDisk = null;
 
+    /** Klucz metryki miniwykresu na karcie dashboardu; null = automatycznie (temperatura CPU, load, dysk /). */
+    #[ORM\Column(length: 190, nullable: true)]
+    private ?string $dashboardChart = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -347,6 +351,16 @@ class Device
     public function setDashboardDisk(?string $dashboardDisk): void
     {
         $this->dashboardDisk = $dashboardDisk;
+    }
+
+    public function getDashboardChart(): ?string
+    {
+        return $this->dashboardChart;
+    }
+
+    public function setDashboardChart(?string $dashboardChart): void
+    {
+        $this->dashboardChart = $dashboardChart;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

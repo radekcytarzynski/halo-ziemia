@@ -91,6 +91,20 @@ final readonly class DeviceManager
         $this->entityManager->flush();
     }
 
+    /**
+     * @param string|null $metricKey null = wybór automatyczny
+     */
+    public function setDashboardChart(Device $device, ?string $metricKey): void
+    {
+        if ($metricKey === $device->getDashboardChart()) {
+            return;
+        }
+        $device->setDashboardChart($metricKey);
+        $device->touch($this->clock->now());
+        $this->events->record($device, EventType::ConfigChange, null === $metricKey ? 'Wykres na pulpicie: automatyczny' : 'Wykres na pulpicie: '.$metricKey);
+        $this->entityManager->flush();
+    }
+
     public function mute(Device $device, \DateTimeImmutable $until): void
     {
         $device->setMutedUntil($until);

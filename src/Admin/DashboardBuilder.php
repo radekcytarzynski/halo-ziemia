@@ -9,6 +9,7 @@ use App\Entity\Device;
 use App\Enum\Severity;
 use App\Metrics\ChartQuery;
 use App\Metrics\ChartRange;
+use App\Metrics\KeyMetrics;
 use App\Metrics\MetricUnit;
 use App\Metrics\Sparkline;
 use App\Repository\AlertStateRepository;
@@ -25,12 +26,8 @@ final readonly class DashboardBuilder
     /** Banner awarii crona, gdy ostatni tick jest starszy niż tyle sekund. */
     public const int CRON_STALE_SECONDS = 180;
 
-    /** Metryki miniwykresu w kolejności preferencji. */
-    private const array SPARKLINE_METRICS = [
-        'cpu.temp_c' => 'Temperatura CPU, 24 h',
-        'load.1' => 'Load, 24 h',
-        'disk./.used_pct' => 'Dysk /, 24 h',
-    ];
+    /** Metryki miniwykresu w kolejności preferencji, gdy urządzenie nie ma wybranej (Device::getDashboardChart). */
+    public const array SPARKLINE_METRICS = ['cpu.temp_c', 'load.1', 'disk./.used_pct'];
 
     public function __construct(
         private DeviceRepository $devices,
@@ -167,7 +164,10 @@ final readonly class DashboardBuilder
             return [null, null];
         }
 
-        foreach (self::SPARKLINE_METRICS as $key => $label) {
+        $chosen = $device->getDashboardChart();
+        $candidates = null !== $chosen && \array_key_exists($chosen, $metrics) ? [$chosen] : self::SPARKLINE_METRICS;
+
+        foreach ($candidates as $key) {
             if (!\array_key_exists($key, $metrics)) {
                 continue;
             }
@@ -179,7 +179,9 @@ final readonly class DashboardBuilder
 
             $points = $this->charts->series($deviceId, $metricId, ChartRange::Day, $now);
 
-            return [Sparkline::path($points, $now->getTimestamp() - ChartRange::Day->seconds(), $now->getTimestamp()), $label];
+            $label = KeyMetrics::label($key, $device->getDiskLabels()) ?? $key;
+
+            return [Sparkline::path($points, $now->getTimestamp() - ChartRange::Day->seconds(), $now->getTimestamp()), $label.', 24 h'];
         }
 
         return [null, null];

@@ -20,6 +20,46 @@ final class KeyMetrics
         'uptime_s' => 'Uptime',
     ];
 
+    /** Etykiety pozostałych metryk (lista wyboru wykresu, miniwykres na pulpicie). */
+    private const array OTHER_LABELS = [
+        'load.5' => 'Load (5 min)',
+        'load.15' => 'Load (15 min)',
+        'mem.available_kb' => 'Wolna pamięć',
+        'mem.swap_used_pct' => 'Swap',
+        'mem.swap_used_kb' => 'Swap',
+        'disk.*.free_b' => 'Wolne miejsce %s',
+        'disk.*.inodes_used_pct' => 'I-węzły %s',
+        'smart.*.percentage_used' => 'Zużycie SSD %s',
+        'smart.*.power_on_hours' => 'Czas pracy %s',
+        'smart.*.reallocated' => 'Realokowane sektory %s',
+        'smart.*.pending' => 'Sektory oczekujące %s',
+        'smart.*.passed' => 'SMART %s',
+        'raid.*.degraded' => 'RAID %s zdegradowany',
+        'rpi.throttled_now' => 'RPi: dławienie teraz',
+        'rpi.throttled' => 'RPi: dławienie',
+    ];
+
+    /**
+     * Czytelna etykieta metryki z nazwą dysku z panelu, np. "Dysk Backup, /srv/backup". null = metryka bez etykiety.
+     *
+     * @param array<string, string> $diskLabels identyfikator dysku => nazwa
+     */
+    public static function label(string $key, array $diskLabels = []): ?string
+    {
+        foreach ([self::PATTERNS, self::OTHER_LABELS] as $patterns) {
+            foreach ($patterns as $pattern => $label) {
+                $captured = self::match($pattern, $key);
+                if (null !== $captured) {
+                    $named = isset($diskLabels[$captured]) && !str_starts_with($pattern, 'check.') ? $diskLabels[$captured].', '.$captured : $captured;
+
+                    return \sprintf($label, $named);
+                }
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @param array<string, mixed>|null $snapshot
      * @param array<string, string>     $diskLabels nazwy dysków z panelu (identyfikator => nazwa)
@@ -39,13 +79,12 @@ final class KeyMetrics
                 if (!\is_string($key) || (!\is_int($value) && !\is_float($value))) {
                     continue;
                 }
-                $captured = self::match($pattern, $key);
-                if (null === $captured) {
+                if (null === self::match($pattern, $key)) {
                     continue;
                 }
                 $result[] = [
                     'key' => $key,
-                    'label' => \sprintf($label, isset($diskLabels[$captured]) && !str_starts_with($pattern, 'check.') ? $diskLabels[$captured].', '.$captured : $captured),
+                    'label' => self::label($key, $diskLabels) ?? $key,
                     'value' => (float) $value,
                     'unit' => MetricUnit::guess($key),
                 ];

@@ -149,6 +149,20 @@
                 {% endfor %}
             </div>
         </div>
+        {% if dashboard_chart_options is not empty %}
+            <form method="post" action="{{ path('app_device_dashboard_chart', {id: device.id}) }}" class="inline-row dashboard-chart-form">
+                <input type="hidden" name="_token" value="{{ csrf_token('device-dashboard-chart' ~ device.id) }}">
+                <label for="dashboard-chart">Wykres na pulpicie</label>
+                <select id="dashboard-chart" name="metric">
+                    <option value="">Automatycznie{% if dashboard_chart_auto %} ({{ dashboard_chart_options[dashboard_chart_auto] }}){% endif %}</option>
+                    {% for key, label in dashboard_chart_options %}
+                        <option value="{{ key }}"{% if device.dashboardChart == key %} selected{% endif %}>{{ label }}{% if label != key %} – {{ key }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-sm">Zapisz</button>
+                {% if device.dashboardChart and dashboard_chart_options[device.dashboardChart] is not defined %}<span class="muted small">Wybrana metryka ({{ device.dashboardChart }}) nie jest już raportowana – pulpit pokazuje wykres automatyczny.</span>{% endif %}
+            </form>
+        {% endif %}
         {% if chart_keys is empty %}
             <p class="muted">Brak danych – wykresy pojawią się po pierwszych heartbeatach z metrykami.</p>
         {% else %}
