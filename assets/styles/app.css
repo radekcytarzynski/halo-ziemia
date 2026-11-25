@@ -283,6 +283,7 @@ textarea { resize: vertical; }
 /* Banner */
 .banner { padding: .8rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; border: 1px solid; }
 .banner-crit { background: color-mix(in srgb, var(--crit) 16%, var(--surface)); border-color: color-mix(in srgb, var(--crit) 55%, transparent); color: var(--text-strong); }
+.banner-warn { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border-color: color-mix(in srgb, var(--warn) 55%, transparent); color: var(--text-strong); }
 .banner a { color: var(--text-strong); text-decoration: underline; }
 
 /* Tagi */

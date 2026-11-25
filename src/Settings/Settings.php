@@ -23,6 +23,9 @@ final class Settings implements ResetInterface
     public const string RETENTION_RAW_DAYS = 'retention_raw_days';
     public const string RETENTION_ROLLUP_DAYS = 'retention_rollup_days';
     public const string LAST_TICK_AT = 'last_tick_at';
+    /** Koniec (wyłącznie) ostatniej zagregowanej godziny, epoch UTC. Retencja nie usuwa próbek sprzed rollupu. */
+    public const string ROLLUP_UNTIL = 'rollup_until';
+    public const string LAST_RETENTION_AT = 'last_retention_at';
 
     public const int DEFAULT_MISSED_INTERVALS_THRESHOLD = 3;
     public const int DEFAULT_REMINDER_INTERVAL_SECONDS = 21600;
@@ -89,6 +92,30 @@ final class Settings implements ResetInterface
     public function markTick(\DateTimeImmutable $at): void
     {
         $this->set(self::LAST_TICK_AT, $at->getTimestamp());
+    }
+
+    public function rollupUntil(): ?int
+    {
+        $value = $this->get(self::ROLLUP_UNTIL);
+
+        return \is_int($value) ? $value : null;
+    }
+
+    public function markRollupUntil(int $hourTs): void
+    {
+        $this->set(self::ROLLUP_UNTIL, $hourTs);
+    }
+
+    public function lastRetentionAt(): ?\DateTimeImmutable
+    {
+        $value = $this->get(self::LAST_RETENTION_AT);
+
+        return \is_int($value) ? new \DateTimeImmutable('@'.$value) : null;
+    }
+
+    public function markRetention(\DateTimeImmutable $at): void
+    {
+        $this->set(self::LAST_RETENTION_AT, $at->getTimestamp());
     }
 
     public function get(string $name): int|float|string|bool|null

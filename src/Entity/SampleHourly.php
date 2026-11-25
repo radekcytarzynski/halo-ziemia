@@ -8,22 +8,21 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Rollup godzinny (min/avg/max/liczba próbek). Źródło wykresów 30 d / 1 rok.
- * Encja służy definicji schematu; operacje przez DBAL.
+ * Encja służy definicji schematu; operacje przez DBAL. Jak w Sample: tylko klucz główny.
  */
 #[ORM\Entity(readOnly: true)]
 #[ORM\Table(name: 'sample_hourly')]
-#[ORM\Index(name: 'idx_sample_hourly_hour', columns: ['hour_ts'])]
 class SampleHourly
 {
+    /** Identyfikator urządzenia, bez klucza obcego (próbki usuwa DeviceManager::delete). */
     #[ORM\Id]
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Device $device;
+    #[ORM\Column]
+    private int $deviceId;
 
+    /** Identyfikator z tabeli metric, bez klucza obcego (słownik metryk tylko rośnie). */
     #[ORM\Id]
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Metric $metric;
+    #[ORM\Column]
+    private int $metricId;
 
     /** Początek godziny, epoch UTC. */
     #[ORM\Id]
@@ -42,10 +41,10 @@ class SampleHourly
     #[ORM\Column(options: ['unsigned' => true])]
     private int $sampleCount;
 
-    public function __construct(Device $device, Metric $metric, int $hourTs, float $min, float $avg, float $max, int $count)
+    public function __construct(int $deviceId, int $metricId, int $hourTs, float $min, float $avg, float $max, int $count)
     {
-        $this->device = $device;
-        $this->metric = $metric;
+        $this->deviceId = $deviceId;
+        $this->metricId = $metricId;
         $this->hourTs = $hourTs;
         $this->minValue = $min;
         $this->avgValue = $avg;
@@ -53,14 +52,14 @@ class SampleHourly
         $this->sampleCount = $count;
     }
 
-    public function getDevice(): Device
+    public function getDeviceId(): int
     {
-        return $this->device;
+        return $this->deviceId;
     }
 
-    public function getMetric(): Metric
+    public function getMetricId(): int
     {
-        return $this->metric;
+        return $this->metricId;
     }
 
     public function getHourTs(): int

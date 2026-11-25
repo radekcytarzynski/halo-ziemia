@@ -106,13 +106,21 @@ final readonly class DeviceManager
     }
 
     /**
-     * Usunięcie urządzenia razem z danymi (kaskadowo). W dzienniku zostaje wpis globalny.
+     * Usunięcie urządzenia razem z danymi. Tabele próbek nie mają kluczy obcych (rozmiar), więc są czyszczone
+     * jawnie; reszta kaskadowo. W dzienniku zostaje wpis globalny.
      */
     public function delete(Device $device): void
     {
         $name = $device->getName();
-        $this->entityManager->remove($device);
-        $this->events->record(null, EventType::ConfigChange, \sprintf('Usunięto urządzenie „%s” wraz z danymi', $name));
-        $this->entityManager->flush();
+        $id = $device->getId();
+        $this->entityManager->wrapInTransaction(function () use ($device, $id, $name): void {
+            if (null !== $id) {
+                $connection = $this->entityManager->getConnection();
+                $connection->executeStatement('DELETE FROM sample WHERE device_id = ?', [$id]);
+                $connection->executeStatement('DELETE FROM sample_hourly WHERE device_id = ?', [$id]);
+            }
+            $this->entityManager->remove($device);
+            $this->events->record(null, EventType::ConfigChange, \sprintf('Usunięto urządzenie „%s” wraz z danymi', $name));
+        });
     }
 }

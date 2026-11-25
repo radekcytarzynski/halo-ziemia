@@ -13,7 +13,7 @@
             {{ form_row(form.mail_from, {attr: {placeholder: mail_from_effective}}) }}
             {{ form_row(form.mail_from_name) }}
             <h2>Retencja danych</h2>
-            {{ form_row(form.retention_raw_days, {help: 'Próbki co minutę – używane przez wykresy 24 h i 7 dni.'}) }}
+            {{ form_row(form.retention_raw_days, {help: 'Próbki co minutę – wykresy 24 h i 7 dni (starsze okresy z rollupów). Największa część bazy: ok. 4–5 MB na urządzenie na dobę (przy ~45 metrykach).'}) }}
             {{ form_row(form.retention_rollup_days, {help: 'Agregaty godzinne (wykresy 30 dni i rok) oraz dziennik zdarzeń.'}) }}
             <div class="form-actions"><button type="submit" class="btn btn-primary">Zapisz</button></div>
         {{ form_end(form) }}
@@ -31,6 +31,32 @@
 5 * * * * {{ php_cli }} {{ project_dir }}/bin/console app:rollup --no-interaction &gt;/dev/null 2&gt;&amp;1
 30 3 * * * {{ php_cli }} {{ project_dir }}/bin/console app:retention --no-interaction &gt;/dev/null 2&gt;&amp;1</code></pre>
                 <button type="button" class="btn btn-sm copy-btn" data-copy-target="cron-lines">Kopiuj</button>
+            </div>
+
+            <h2 class="mt">Rollup i retencja</h2>
+            {% set until = storage.rollupUntil %}
+            {% set retention = storage.lastRetentionAt %}
+            {% if storage.rollupStale or storage.retentionStale %}
+                <div class="banner banner-warn">Rollup albo retencja nie są uruchamiane – baza będzie rosła bez ograniczeń. Dodaj do crona <code>app:rollup</code> i <code>app:retention</code> (wyżej).</div>
+            {% endif %}
+            <dl class="kv">
+                <dt>Rollup godzinny</dt>
+                <dd>{% if until %}dane do {{ until|date('Y-m-d H:i') }}{% else %}<span class="muted">jeszcze nie działał</span>{% endif %}</dd>
+                <dt>Retencja</dt>
+                <dd>{% if retention %}{{ retention|hz_ago }}{% else %}<span class="muted">jeszcze nie działała</span>{% endif %}</dd>
+            </dl>
+
+            <h2 class="mt">Rozmiar danych</h2>
+            <div class="table-wrap">
+                <table class="table table-compact">
+                    <thead><tr><th>Tabela</th><th class="num">Wiersze (ok.)</th><th class="num">Rozmiar</th></tr></thead>
+                    <tbody>
+                    {% for t in tables|filter(t => t.bytes >= 1048576)|slice(0, 6) %}
+                        <tr><td class="mono small">{{ t.name }}</td><td class="num">{{ t.rows|hz_number }}</td><td class="num">{{ t.bytes|hz_bytes }}{% if t.free >= 10485760 %} <span class="muted small" title="Miejsce po usuniętych danych, do odzyskania: app:retention --optimize">+{{ t.free|hz_bytes }} wolne</span>{% endif %}</td></tr>
+                    {% endfor %}
+                    <tr><td><strong>Razem</strong></td><td></td><td class="num"><strong>{{ tables|reduce((sum, t) => sum + t.bytes, 0)|hz_bytes }}</strong></td></tr>
+                    </tbody>
+                </table>
             </div>
 
             <h2 class="mt">Watchdog</h2>

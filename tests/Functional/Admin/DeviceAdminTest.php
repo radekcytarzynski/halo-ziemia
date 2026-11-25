@@ -199,10 +199,20 @@ final class DeviceAdminTest extends PanelTestCase
         $this->em()->clear();
         self::assertSame(5, $this->em()->find(Device::class, $id)?->getMissedIntervalsThreshold());
 
+        // Tabele próbek nie mają kluczy obcych – DeviceManager czyści je jawnie (próbki innego urządzenia zostają)
+        $db = $this->em()->getConnection();
+        foreach ([$id, 999999] as $deviceId) {
+            $db->insert('sample', ['device_id' => $deviceId, 'metric_id' => 1, 'ts' => 1_700_000_000, 'value' => 1]);
+            $db->insert('sample_hourly', ['device_id' => $deviceId, 'metric_id' => 1, 'hour_ts' => 1_699_999_200, 'min_value' => 1, 'avg_value' => 1, 'max_value' => 1, 'sample_count' => 1]);
+        }
+
         $this->clickPostButton('/devices/'.$id.'/edit', 'Usuń urządzenie');
         self::assertResponseRedirects('/devices');
         $this->em()->clear();
         self::assertNull($this->em()->find(Device::class, $id));
+        $db = $this->em()->getConnection();
+        self::assertSame([999999], array_map(static fn (mixed $v): int => is_numeric($v) ? (int) $v : -1, $db->fetchFirstColumn('SELECT device_id FROM sample')));
+        self::assertSame([999999], array_map(static fn (mixed $v): int => is_numeric($v) ? (int) $v : -1, $db->fetchFirstColumn('SELECT device_id FROM sample_hourly')));
         self::assertSame(DeviceStatus::Pending, $device->getStatus());
     }
 }

@@ -9,21 +9,24 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * Surowa próbka (1/min). Wąska tabela; zapis i odczyt przez DBAL (bulk insert, zapytania wykresów).
  * Encja służy definicji schematu. Czas jako epoch UTC w sekundach.
+ *
+ * Celowo tylko klucz główny (device_id, metric_id, ts), bez kluczy obcych i indeksów dodatkowych: każdy indeks
+ * to kilkadziesiąt bajtów na wiersz, a wierszy jest ~45 na urządzenie na minutę. Wszystkie zapytania (wykresy,
+ * rollup, retencja) idą po parze urządzenie–metryka, czyli po początku klucza głównego.
  */
 #[ORM\Entity(readOnly: true)]
 #[ORM\Table(name: 'sample')]
-#[ORM\Index(name: 'idx_sample_ts', columns: ['ts'])]
 class Sample
 {
+    /** Identyfikator urządzenia, bez klucza obcego (próbki usuwa DeviceManager::delete). */
     #[ORM\Id]
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Device $device;
+    #[ORM\Column]
+    private int $deviceId;
 
+    /** Identyfikator z tabeli metric, bez klucza obcego (słownik metryk tylko rośnie). */
     #[ORM\Id]
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Metric $metric;
+    #[ORM\Column]
+    private int $metricId;
 
     #[ORM\Id]
     #[ORM\Column(options: ['unsigned' => true])]
@@ -32,22 +35,22 @@ class Sample
     #[ORM\Column]
     private float $value;
 
-    public function __construct(Device $device, Metric $metric, int $ts, float $value)
+    public function __construct(int $deviceId, int $metricId, int $ts, float $value)
     {
-        $this->device = $device;
-        $this->metric = $metric;
+        $this->deviceId = $deviceId;
+        $this->metricId = $metricId;
         $this->ts = $ts;
         $this->value = $value;
     }
 
-    public function getDevice(): Device
+    public function getDeviceId(): int
     {
-        return $this->device;
+        return $this->deviceId;
     }
 
-    public function getMetric(): Metric
+    public function getMetricId(): int
     {
-        return $this->metric;
+        return $this->metricId;
     }
 
     public function getTs(): int

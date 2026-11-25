@@ -124,11 +124,15 @@ Hasło (minimum 12 znaków) wpisujesz interaktywnie.
 | Kiedy | Polecenie |
 |-------|-----------|
 | `* * * * *` | `/usr/local/bin/php85 /home/<użytkownik>/domains/<domena>/public_html/app/bin/console app:tick --no-interaction > /dev/null 2>&1` |
-| `5 * * * *` | `… app:rollup --no-interaction > /dev/null 2>&1` (od etapu 6) |
-| `30 3 * * *` | `… app:retention --no-interaction > /dev/null 2>&1` (od etapu 6) |
+| `5 * * * *` | `… app:rollup --no-interaction > /dev/null 2>&1` |
+| `30 3 * * *` | `… app:retention --no-interaction > /dev/null 2>&1` |
 
 Gotowe linie z poprawnymi ścieżkami są w panelu: **Ustawienia → Cron**. Ścieżka `app/` się nie zmienia, bo wdrożenie podmienia katalogi, więc cron nie wymaga poprawek po kolejnych wdrożeniach.
 Błędy crona trafiają do `public_html/log/prod.log`. Dashboard pokazuje czerwony banner, gdy `app:tick` nie działa dłużej niż 3 minuty.
+
+Wszystkie trzy wpisy są potrzebne. `app:rollup` agreguje co godzinę próbki do rollupów godzinnych (wykresy 30 dni i rok). `app:retention` raz na dobę usuwa dane starsze niż ustawienia (**Ustawienia → Retencja**: próbki surowe 14 dni, rollupy i zdarzenia 400 dni). Bez nich baza rośnie bez ograniczeń, o ok. 4–5 MB na urządzenie na dobę. Retencja nigdy nie usuwa próbek, których rollup jeszcze nie objął. Stan obu i rozmiar tabel pokazują **Ustawienia** oraz `app:status`.
+
+InnoDB nie zmniejsza pliku tabeli po usunięciu danych, tylko wykorzystuje zwolnione miejsce na nowe wiersze. Jeśli po pierwszej retencji chcesz od razu odzyskać miejsce (limit bazy na hostingu), uruchom raz `app:retention --optimize`.
 
 Opcjonalnie [healthchecks.io](https://healthchecks.io) (darmowe): utwórz check z okresem 1 min i grace 5 min, a jego URL wpisz jako `WATCHDOG_URL` w `shared/.env.local`. Dostaniesz alarm, gdy przestanie działać sam monitor.
 

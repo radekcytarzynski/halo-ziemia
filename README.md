@@ -118,7 +118,7 @@ a gotowy snippet instalacyjny z adresem jest na stronie urządzenia. Kontrakt pl
 
 - `src/Entity`, `src/Enum`, `src/Repository`: model danych
 - `src/Controller/Admin`: panel (Twig)
-- `src/Command`: komendy konsolowe (`app:user:create`, później `app:tick`, `app:rollup`, `app:retention`)
+- `src/Command`: komendy konsolowe (`app:tick`, `app:rollup`, `app:retention`, `app:status`, `app:user:create`, `app:device:create`, `app:notify:test`)
 - `assets/`: CSS/JS przez AssetMapper (bez Node, bez CDN)
 - `agent/`: agent bash dla urządzeń (testy: `composer agent`, czyli shellcheck i bats)
 - `deploy/`: miejsce na skrypty wdrożeniowe (etap 6)

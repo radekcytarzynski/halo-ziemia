@@ -7,6 +7,7 @@ namespace App\Controller\Admin;
 use App\Admin\DashboardBuilder;
 use App\Admin\Form\SettingsType;
 use App\Enum\EventType;
+use App\Metrics\StorageStatus;
 use App\Monitoring\Watchdog;
 use App\Settings\Settings;
 use App\Timeline\EventRecorder;
@@ -26,6 +27,7 @@ final class SettingsController extends AbstractController
         Watchdog $watchdog,
         EventRecorder $events,
         EntityManagerInterface $entityManager,
+        StorageStatus $storage,
     ): Response {
         $storedFrom = $settings->get(Settings::MAIL_FROM);
         $storedName = $settings->get(Settings::MAIL_FROM_NAME);
@@ -62,6 +64,8 @@ final class SettingsController extends AbstractController
             'mail_from_effective' => $settings->mailFrom(),
             'project_dir' => $this->getParameter('kernel.project_dir'),
             'php_cli' => $this->getParameter('app.php_cli'),
+            'storage' => $storage,
+            'tables' => $storage->tables(),
         ]);
     }
 }
